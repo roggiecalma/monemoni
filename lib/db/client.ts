@@ -20,6 +20,32 @@ if (typeof window !== "undefined") {
 }
 
 /**
+ * The URL schemes a hosted (remote) database can be reached with.
+ *
+ * Everything else — a `file:` URL, a bare relative path, an absolute path
+ * on the machine — points at a local SQLite file.
+ */
+const HOSTED_SCHEMES = ["libsql://", "https://", "wss://"]
+
+/** Is this the URL of a hosted (remote) database? */
+function isHostedUrl(url: string): boolean {
+  return HOSTED_SCHEMES.some((scheme) => url.startsWith(scheme))
+}
+
+/**
+ * May production run against a local database file?
+ *
+ * `MONE_MONI_ALLOW_LOCAL_DB=1` is an explicit opt-out that exists for
+ * **local production-mode verification only** — `next start` against a
+ * local file, which the guard below would otherwise refuse. It must never
+ * be set on a real deployment: a hosted deployment that points at a local
+ * file would silently start from an empty database.
+ */
+function allowLocalDatabase(): boolean {
+  return process.env.MONE_MONI_ALLOW_LOCAL_DB === "1"
+}
+
+/**
  * Resolves the database URL, refusing to fall back to a local file in
  * production.
  *
@@ -44,7 +70,9 @@ function resolveDatabaseUrl(): string {
       )
     }
 
-    if (configured.startsWith("file:")) {
+    // Only a hosted URL is acceptable — a local file is not, no matter how
+    // it is spelled (`file:./local.db`, `./local.db`, `/tmp/local.db`).
+    if (!isHostedUrl(configured) && !allowLocalDatabase()) {
       throw new Error(
         `DATABASE_URL points at a local SQLite file ("${configured}"). A local file cannot be used in production — set DATABASE_URL to the hosted libSQL/Turso URL.`,
       )

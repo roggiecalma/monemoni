@@ -16,7 +16,10 @@ export function ServiceWorkerRegistrar() {
     if (!("serviceWorker" in navigator)) return
 
     const register = () => {
-      navigator.serviceWorker.register("/sw.js").catch(() => {
+      // `updateViaCache: "none"` keeps the browser from serving a stale
+      // `sw.js` out of the HTTP cache — the worker has to be the one the
+      // server just sent, otherwise an old (caching) worker stays alive.
+      navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).catch(() => {
         // A failed registration must never break the app.
       })
     }

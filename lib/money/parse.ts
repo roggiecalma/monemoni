@@ -107,6 +107,11 @@ function parseInternal(input: string): PesoParseResult {
  * Accepts `"1,234.56"`, `"1234"`, `"₱99.90"`, `" 12.5 "`, `"-50"`.
  * Returns `null` for empty input, non-numeric text, more than two decimal
  * places, or a malformed thousands separator (`"1,23"`).
+ *
+ * **Prefer {@link parsePesoToCentavosSafe}.** `null` and `0` are both falsy,
+ * so a truthiness check on the result silently rejects a legitimate ₱0.00 —
+ * or worse, accepts it and stores a ₱0 transaction. The safe variant returns
+ * a discriminated result that cannot be confused.
  */
 export function parsePesoToCentavos(input: string): number | null {
   const result = parseInternal(input)

@@ -5,8 +5,9 @@
  * SERVER ONLY — imports `lib/db/client`.
  */
 
-import { and, asc, desc, eq, gte, lte, sql, type SQL } from "drizzle-orm"
+import { and, asc, desc, eq, gte, lte, ne, sql, type SQL } from "drizzle-orm"
 
+import { lastDayOfMonth, monthKey } from "../dates"
 import { db } from "./client"
 import {
   accounts,
@@ -20,6 +21,25 @@ import {
   type Transaction,
   type TransactionType,
 } from "./schema"
+
+/**
+ * Maps a category kind to the transaction direction it belongs to.
+ *
+ * `CategoryKind` ("income" | "expense") and `TransactionType` ("income" |
+ * "expense" | "transfer") are two different vocabularies that happen to
+ * overlap today. Category totals are driven by the *transaction's* type — a
+ * transaction belongs to the income or the expense breakdown according to its
+ * own direction, and the category only decides how it is *grouped* — so the
+ * two vocabularies must be translated before they can be compared.
+ *
+ * The map is exhaustive on purpose: adding a new `CategoryKind` is a compile
+ * error until the translation is updated, rather than a silently empty
+ * breakdown.
+ */
+const CATEGORY_KIND_DIRECTION: Record<CategoryKind, "income" | "expense"> = {
+  income: "income",
+  expense: "expense",
+}
 
 export interface TransactionFilters {
   /** `YYYY-MM-DD` (inclusive) */
@@ -39,6 +59,11 @@ export interface AccountBalance {
   id: string
   name: string
   type: AccountType
+  /**
+   * A liability (e.g. a credit card) holds a **negative** balance while
+   * money is owed — see the liability sign convention in ARCHITECTURE.md.
+   */
+  isLiability: boolean
   /** opening balance + income − expense + transfers in − transfers out − goal contributions */
   balance: number
 }
@@ -71,38 +96,130 @@ function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, (match) => `\\${match}`)
 }
 
-function pad2(value: number): string {
-  return value < 10 ? `0${value}` : String(value)
+/** The largest page size a transaction query may ask for. */
+const MAX_TRANSACTION_LIMIT = 500
+
+/** The largest row offset a transaction query may ask for. */
+const MAX_TRANSACTION_OFFSET = 1_000_000
+
+/**
+ * The page size assumed when a caller paginates without naming one.
+ *
+ * SQLite rejects `OFFSET` without `LIMIT` (`near "offset": syntax error`),
+ * so an offset always implies a page size. 50 sits inside the clamped
+ * 1…500 range, so it is passed through `clampLimit` like any explicit limit
+ * and there is a single source of truth for the bounds.
+ */
+const DEFAULT_PAGE_SIZE = 50
+
+/** The largest number of months of history a monthly report may ask for. */
+const MAX_MONTHS = 120
+
+/**
+ * Clamps a caller supplied `LIMIT` into a sane range.
+ *
+ * Drizzle hands the value straight to SQLite, which does not validate it:
+ * a negative limit means "no limit" in SQL (every row comes back) and a
+ * fractional limit raises `SQLITE_MISMATCH`, turning a bad request into a
+ * 500. A non-finite value is treated as "no limit at all" rather than
+ * being forwarded to the driver.
+ */
+function clampLimit(limit: number | undefined): number | undefined {
+  if (limit === undefined || !Number.isFinite(limit)) return undefined
+  return Math.min(Math.max(Math.trunc(limit), 1), MAX_TRANSACTION_LIMIT)
 }
 
-function toMonthKey(date: Date): string {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`
+/**
+ * Clamps a caller supplied `OFFSET` into a sane range.
+ *
+ * A negative offset is meaningless (SQLite walks backwards, so it is simply
+ * ignored) and a huge one forces the database to scan the whole table before
+ * returning nothing, so it is capped.
+ */
+function clampOffset(offset: number | undefined): number | undefined {
+  if (offset === undefined || !Number.isFinite(offset)) return undefined
+  return Math.min(Math.max(Math.trunc(offset), 0), MAX_TRANSACTION_OFFSET)
 }
 
-function toDateKey(date: Date): string {
-  return `${toMonthKey(date)}-${pad2(date.getDate())}`
+/** Options shared by the list helpers below. */
+export interface ListOptions {
+  /**
+   * Include the archived records?
+   *
+   * Defaults to `true`, because archiving is a *management* concept and not
+   * a ledger one: archiving hides a record from the pickers, it never
+   * removes it from the ledger. An archived account still holds a balance
+   * and still counts toward net worth, and a historic transaction still
+   * shows its category's name and colour.
+   *
+   * Pass `false` for the pickers and for the active list of a management
+   * screen.
+   */
+  includeArchived?: boolean
 }
 
 /** All accounts, in display order. */
-export async function getAccounts(): Promise<Account[]> {
+export async function getAccounts(options: ListOptions = {}): Promise<Account[]> {
+  const includeArchived = options.includeArchived ?? true
+  const condition = includeArchived ? undefined : eq(accounts.archived, false)
+
   return db
     .select()
     .from(accounts)
+    .where(condition)
     .orderBy(asc(accounts.sortOrder), asc(accounts.name))
 }
 
+/**
+ * A single account by its id, or `null` when there is no such account.
+ *
+ * Archived accounts are found as well — archiving hides a record from the
+ * pickers, it never removes it from the ledger.
+ */
+export async function getAccountById(id: string): Promise<Account | null> {
+  const rows = await db.select().from(accounts).where(eq(accounts.id, id)).limit(1)
+
+  return rows[0] ?? null
+}
+
 /** All categories (optionally filtered by kind), in display order. */
-export async function getCategories(kind?: CategoryKind): Promise<Category[]> {
-  const condition = kind ? eq(categories.kind, kind) : undefined
+export async function getCategories(
+  kind?: CategoryKind,
+  options: ListOptions = {},
+): Promise<Category[]> {
+  const includeArchived = options.includeArchived ?? true
+
+  const conditions: SQL[] = []
+  if (kind) conditions.push(eq(categories.kind, kind))
+  if (!includeArchived) conditions.push(eq(categories.archived, false))
 
   return db
     .select()
     .from(categories)
-    .where(condition)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(asc(categories.kind), asc(categories.sortOrder), asc(categories.name))
 }
 
-/** Transactions matching the given filters, newest first. */
+/**
+ * A single category by its id, or `null` when there is no such category.
+ *
+ * Archived categories are found as well — archiving hides a record from the
+ * pickers, it never removes it from the ledger.
+ */
+export async function getCategoryById(id: string): Promise<Category | null> {
+  const rows = await db.select().from(categories).where(eq(categories.id, id)).limit(1)
+
+  return rows[0] ?? null
+}
+
+/**
+ * Transactions matching the given filters, newest first.
+ *
+ * Supplying `offset` implies pagination: if `limit` is omitted a page size of
+ * 50 (`DEFAULT_PAGE_SIZE`) is assumed, because SQLite rejects `OFFSET`
+ * without `LIMIT`. Passing neither `limit` nor `offset` returns every
+ * matching row.
+ */
 export async function getTransactions(filters: TransactionFilters = {}): Promise<Transaction[]> {
   const conditions: SQL[] = []
 
@@ -123,11 +240,20 @@ export async function getTransactions(filters: TransactionFilters = {}): Promise
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(transactions.date), desc(transactions.createdAt))
 
-  if (filters.limit !== undefined) {
-    query.limit(filters.limit)
+  const limit = clampLimit(filters.limit)
+  const offset = clampOffset(filters.offset)
+
+  // An offset implies pagination: SQLite has no `OFFSET` without a `LIMIT`,
+  // so a missing limit falls back to the default page size. It goes through
+  // the same clamping helper as an explicit limit.
+  const effectiveLimit =
+    limit ?? (offset === undefined ? undefined : clampLimit(DEFAULT_PAGE_SIZE))
+
+  if (effectiveLimit !== undefined) {
+    query.limit(effectiveLimit)
   }
-  if (filters.offset !== undefined) {
-    query.offset(filters.offset)
+  if (offset !== undefined) {
+    query.offset(offset)
   }
 
   return query
@@ -144,6 +270,7 @@ export async function getAccountBalances(): Promise<AccountBalance[]> {
       id: accounts.id,
       name: accounts.name,
       type: accounts.type,
+      isLiability: accounts.isLiability,
       openingBalance: accounts.openingBalance,
     })
     .from(accounts)
@@ -218,6 +345,7 @@ export async function getAccountBalances(): Promise<AccountBalance[]> {
       id: account.id,
       name: account.name,
       type: account.type,
+      isLiability: account.isLiability,
       balance,
     }
   })
@@ -248,7 +376,17 @@ export async function getSummary(from: string, to: string): Promise<Summary> {
 }
 
 /**
- * Per-category totals for a date range. Transfers are excluded.
+ * Per-category totals for a date range, for the given kind.
+ *
+ * The breakdown is driven by the transaction's **own direction**: a
+ * transaction belongs to the income or the expense breakdown according to its
+ * `type`, and the category only decides how it is *grouped*. A transaction
+ * without a category is grouped under "Uncategorized" inside its own
+ * direction, so uncategorised spending is never lost from a breakdown.
+ *
+ * Transfers are excluded: a transfer has no direction in
+ * `CATEGORY_KIND_DIRECTION`, so it can never match the filter, and the
+ * explicit exclusion keeps that intent visible in the SQL.
  */
 export async function getCategoryTotals(
   from: string,
@@ -270,9 +408,16 @@ export async function getCategoryTotals(
       and(
         gte(transactions.date, from),
         lte(transactions.date, to),
-        eq(transactions.type, kind),
+        // The *transaction's* type decides the breakdown; the category only
+        // groups it. This is what keeps uncategorised spending in the
+        // breakdown (as "Uncategorized") instead of dropping it.
+        eq(transactions.type, CATEGORY_KIND_DIRECTION[kind]),
+        // Belt and braces: a transfer has no direction, so it never matches.
+        ne(transactions.type, "transfer"),
       ),
     )
+    // Grouping by the (nullable) category id keeps every uncategorised
+    // transaction of this direction together in a single row.
     .groupBy(
       transactions.categoryId,
       categories.name,
@@ -298,12 +443,16 @@ export async function getCategoryTotals(
 export async function getMonthlyTotals(months: number): Promise<MonthlyTotal[]> {
   if (!Number.isFinite(months) || months <= 0) return []
 
-  const now = new Date()
-  const start = new Date(now.getFullYear(), now.getMonth() - (Math.trunc(months) - 1), 1)
-  const lastDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  // Ten years of history is plenty for a personal finance app. The cap also
+  // keeps the date arithmetic below inside the valid JS date range and stops
+  // the result loop from running for millions of iterations.
+  const monthCount = Math.min(Math.max(Math.trunc(months), 1), MAX_MONTHS)
 
-  const from = toMonthKey(start)
-  const to = toDateKey(lastDayOfCurrentMonth)
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth() - (monthCount - 1), 1)
+
+  const from = monthKey(start)
+  const to = lastDayOfMonth(now)
 
   const rows = await db
     .select({
@@ -327,8 +476,8 @@ export async function getMonthlyTotals(months: number): Promise<MonthlyTotal[]> 
   }
 
   const result: MonthlyTotal[] = []
-  for (let offset = Math.trunc(months) - 1; offset >= 0; offset -= 1) {
-    const month = toMonthKey(new Date(now.getFullYear(), now.getMonth() - offset, 1))
+  for (let offset = monthCount - 1; offset >= 0; offset -= 1) {
+    const month = monthKey(new Date(now.getFullYear(), now.getMonth() - offset, 1))
     const income = incomeByMonth.get(month) ?? 0
     const expense = expenseByMonth.get(month) ?? 0
     result.push({ month, income, expense, net: income - expense })

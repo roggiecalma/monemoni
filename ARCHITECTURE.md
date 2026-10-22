@@ -44,6 +44,8 @@ Do **not** add dependencies without a strong reason. Do not upgrade pinned versi
 
 All tables use `text` primary keys holding `crypto.randomUUID()`. Boolean columns are `integer({ mode: "boolean" })`.
 
+**Exception — `users`.** The `users` table holds exactly one row for the whole install, so its primary key is the fixed string `"user"` instead of a UUID. A random UUID would let two concurrent setup submissions both insert, leaving the install with two users and no way to tell which passcode is the real one. A deterministic key turns the second insert into a primary-key violation, which the setup action recognises and reports as "already set up". `sessions.user_id` references it as usual.
+
 | Table | Columns |
 | --- | --- |
 | `users` | `id`, `password_hash`, `created_at` |
@@ -65,12 +67,14 @@ Indexes: `transactions(date)`, `transactions(account_id)`, `transactions(categor
 - **Account balance** = `opening_balance` + income − expense + transfers in − transfers out − goal contributions.
 - **Goal contributions are separate from spending.** Money moved into a savings goal is set aside, not spent, so it must not appear in expense totals or category breakdowns.
 - **`recurring_id`** links a generated transaction back to the bill that produced it.
+- **Category totals are driven by the transaction's direction, not the category's kind.** A transaction belongs to the income or the expense breakdown according to its own `type`; the category only decides how it is *grouped*. A transaction with no category is grouped under **Uncategorized** within its own direction, so uncategorised spending is never lost from a breakdown. The mapping from a category kind to a transaction direction is exhaustive and type-checked, so adding a new kind is a compile error rather than a silently empty breakdown. A transaction whose category kind disagrees with its type is a data-integrity error — writes must reject it.
+- **Archiving is a management concept, not a ledger concept.** Accounts and categories carry an `archived` flag. An archived record is hidden from the *pickers* (the dropdowns in the transaction form) and is listed separately on its management screen with a Restore button — but it stays in the ledger: it still holds a balance, still appears in totals, and a historic transaction still shows its name and colour. Archiving is the only removal operation for an account or a category; they are never hard-deleted, because transactions reference them.
 
 ### Liability sign convention
 
 - A balance is a **signed** number of centavos, and the balance formula above is the only definition of it.
 - A **liability** account (`is_liability = true`, e.g. a credit card) holds a **negative balance when money is owed**. Spending on the card makes the balance more negative; paying the card (a transfer *into* it) moves it back towards zero.
-- The `opening_balance` of a liability is therefore entered as a negative amount (owing ₱5,000 → `-500000`).
+- The `opening_balance` of a liability is therefore **negative** (owing ₱5,000 → `-500000`). The *form* never asks the user to type a negative number: for a liability the field is labelled **"Amount owed"**, takes a positive amount, and the server negates it before storing. The stored value is always negative.
 - **Net worth = the sum of every account balance**, liabilities included. Because a liability balance is negative, a liability reduces net worth.
 - The UI shows a liability's balance as a magnitude with an **"owed"** label (e.g. `₱5,000.00 owed`), never as a bare negative amount; every calculation uses the signed value.
 
@@ -102,7 +106,7 @@ Single user. No signup, no email, no OAuth.
 
 ## Code conventions
 
-- **Server Components by default.** Add `"use client"` only when genuinely needed (a form with client state, a native date picker). Prefer plain HTML `<form>` elements with Server Actions over client-side fetch.
+- **Server Components by default.** Add `"use client"` only when genuinely needed — for example a form that must show an action's result without a page reload. Prefer plain HTML `<form>` elements with Server Actions over client-side fetch. Native HTML controls (`<input type="date">`, `<input type="color">`, `<select>`, `<details>`/`<summary>`) are server-renderable and need **no** client component.
 - All writes go through **Server Actions** in `lib/actions/*.ts`. Each action: `requireSession()` → `zod` parse → DB write → `redirect()`.
   - `requireSession()` is required for **every** action that touches user data. The only exemptions are the two **pre-auth** actions — `setupPasscode` and `login` — which by definition run before a session can exist. They must never touch existing user data.
   - Actions finish with `redirect()` (post/redirect/get). Every page reads live from the database and the navigation uses plain `<a>` links rather than the client router, so there is no router cache to invalidate and `revalidatePath()` is not required. Call it if client-side navigation is ever introduced.
@@ -119,6 +123,7 @@ Decisions that are deliberate, so nobody re-litigates them later:
 - **The Content-Security-Policy allows `'unsafe-inline'`** for scripts and styles, because Next.js injects inline bootstrap scripts. A nonce-based policy needs `proxy.ts` and forces every page to be dynamically rendered — too much for this app. The app renders no raw HTML and no user-controlled markup, so `'unsafe-inline'` is the smaller risk. Revisit if user-generated content is ever rendered.
 - **`lib/db/client.ts` guards client imports with a runtime `typeof window` check**, not `import "server-only"`. The `server-only` package is not a dependency, the project does not add dependencies without a strong reason, and the runtime check already fails loudly on an accidental client import.
 - **`formatPeso` divides centavos by 100** and lets `Intl.NumberFormat` do the formatting, which is what the money rules above prescribe. The result can differ by one centavo only above roughly 2⁴⁷ centavos (about ₱90 trillion), which no personal balance reaches.
+- **A failed form loses what the user typed.** Server Actions return a value to the *client*, so a Server Component cannot read one without shipping JavaScript. Every form therefore uses post/redirect/get: a failure redirects to the form's own URL with `?error=<code>` and the page re-derives the message from a code → message map. The trade-off is that the submitted values are not preserved — the form comes back showing the last *saved* values. This is accepted because it keeps every page a pure Server Component, and because the error message names the field that needs fixing.
 
 ## Environment
 
@@ -126,8 +131,11 @@ Decisions that are deliberate, so nobody re-litigates them later:
 | --- | --- | --- |
 | `DATABASE_URL` | `file:./local.db` (default when unset) | `libsql://<db>.turso.io` |
 | `DATABASE_AUTH_TOKEN` | empty | Turso auth token |
+| `MONE_MONI_ALLOW_LOCAL_DB` | unset | unset — `1` permits a local file in production, for local `next start` only |
 
 `lib/db/client.ts` reads these once and exposes a Drizzle instance. The same code path works locally and in production.
+
+**The production database guard.** Under `NODE_ENV=production` the URL must be present and must use a hosted scheme — `libsql://`, `https://` or `wss://`. A `file:` URL, a bare relative path or an absolute local path is rejected, because silently pointing production at a throwaway local file is how a user loses their data without noticing. The whole guard is skipped while `NEXT_PHASE === "phase-production-build"`, so `next build` succeeds without a database. `MONE_MONI_ALLOW_LOCAL_DB=1` is an explicit opt-in that relaxes the local-file rule for local production-mode verification; it must never be set on a real deployment, and it does **not** make a missing `DATABASE_URL` acceptable.
 
 ## Commands
 

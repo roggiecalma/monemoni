@@ -9,15 +9,33 @@ import bcrypt from "bcryptjs"
 
 export const PASSWORD_MIN_LENGTH = 8
 
-/** bcrypt cost factor. */
-const BCRYPT_COST = 10
-
 /**
  * Maximum number of **bytes** bcrypt reads from a passcode. Everything past
  * that point is silently dropped, so two passcodes sharing their first 72
  * bytes would hash to the same credential.
  */
-const BCRYPT_MAX_BYTES = 72
+export const PASSWORD_MAX_BYTES = 72
+
+/** bcrypt cost factor. */
+const BCRYPT_COST = 10
+
+/** Why a passcode was rejected. */
+export type PasswordErrorCode = "too-short" | "too-long"
+
+/**
+ * Result of {@link validatePassword}.
+ *
+ * A failure carries a **code** as well as the message, so the caller can
+ * tell the two rejection reasons apart: a passcode that is too long is a
+ * different problem from a passcode that is too short, and the user
+ * deserves to be told which one it is.
+ *
+ * `error` is declared on the success branch as well (as `undefined`), so
+ * the property can be read on the result without narrowing first.
+ */
+export type PasswordValidation =
+  | { ok: true; error?: undefined }
+  | { ok: false; error: string; code: PasswordErrorCode }
 
 /** Hashes a passcode with bcrypt (cost 10). */
 export async function hashPassword(password: string): Promise<string> {
@@ -37,11 +55,12 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
  * **bytes**, so a longer passcode would be stored as something shorter than
  * the user typed.
  */
-export function validatePassword(password: string): { ok: boolean; error?: string } {
+export function validatePassword(password: string): PasswordValidation {
   if (password.length < PASSWORD_MIN_LENGTH) {
     return {
       ok: false,
       error: `Passcode must be at least ${PASSWORD_MIN_LENGTH} characters.`,
+      code: "too-short",
     }
   }
 
@@ -50,7 +69,8 @@ export function validatePassword(password: string): { ok: boolean; error?: strin
   if (bcrypt.truncates(password)) {
     return {
       ok: false,
-      error: `Passcode is too long (${BCRYPT_MAX_BYTES} bytes maximum).`,
+      error: `Passcode is too long (${PASSWORD_MAX_BYTES} bytes maximum).`,
+      code: "too-long",
     }
   }
 

@@ -55,6 +55,12 @@ export default async function SetupPage({
           </p>
         </div>
 
+        {/*
+          The `maxLength` on the inputs is a loose upper bound in
+          *characters*: the real limit is 72 **bytes** (bcrypt only reads
+          that many, and the server enforces it). It is here to keep an
+          absurdly long passcode out of the request.
+        */}
         <form
           action={submit}
           className="space-y-4 rounded-xl border border-border bg-surface p-5 shadow-sm"
@@ -69,6 +75,7 @@ export default async function SetupPage({
               type="password"
               required
               minLength={PASSWORD_MIN_LENGTH}
+              maxLength={72}
               autoComplete="new-password"
               autoFocus
               className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
@@ -86,6 +93,7 @@ export default async function SetupPage({
               type="password"
               required
               minLength={PASSWORD_MIN_LENGTH}
+              maxLength={72}
               autoComplete="new-password"
               className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
             />

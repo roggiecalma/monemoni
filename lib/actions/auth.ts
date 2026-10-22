@@ -17,6 +17,12 @@ import { z } from "zod"
 import { authFailure, type AuthActionResult } from "@/lib/auth/errors"
 import { hashPassword, validatePassword, verifyPassword } from "@/lib/auth/password"
 import { createSession, destroySession, getCurrentUser, hasUser, requireSession } from "@/lib/auth/session"
+import {
+  assertLoginAllowed,
+  LoginLockedError,
+  recordLoginFailure,
+  recordLoginSuccess,
+} from "@/lib/auth/throttle"
 import { db } from "@/lib/db/client"
 import { users } from "@/lib/db/schema"
 
@@ -58,7 +64,9 @@ export async function setupPasscode(formData: FormData): Promise<AuthActionResul
 
   const strength = validatePassword(password)
   if (!strength.ok) {
-    return authFailure("too-short")
+    // The validation knows *why* the passcode was rejected: a passcode that
+    // is too long must not be reported as one that is too short.
+    return authFailure(strength.code)
   }
 
   if (password !== confirmPassword) {
@@ -66,12 +74,26 @@ export async function setupPasscode(formData: FormData): Promise<AuthActionResul
   }
 
   const userId = crypto.randomUUID()
+  const passwordHash = await hashPassword(password)
 
-  await db.insert(users).values({
-    id: userId,
-    passwordHash: await hashPassword(password),
-    createdAt: Date.now(),
+  // The existence check is repeated inside the write transaction: two
+  // submissions that race each other would both see "no user" and both
+  // insert a row, leaving two users behind — and `getCurrentUser()` would
+  // then pick one of them at random. The second insert is refused here.
+  const outcome = await db.transaction(async (tx) => {
+    const existing = await tx.select({ id: users.id }).from(users).limit(1)
+    if (existing.length > 0) return "already-setup" as const
+
+    await tx.insert(users).values({ id: userId, passwordHash, createdAt: Date.now() })
+    return "created" as const
   })
+
+  if (outcome === "already-setup") {
+    redirect("/login")
+  }
+
+  // A brand new passcode starts with a clean login throttle.
+  await recordLoginSuccess()
 
   await createSession(userId)
   redirect("/dashboard")
@@ -96,6 +118,17 @@ export async function login(formData: FormData): Promise<AuthActionResult> {
     return authFailure("invalid-input")
   }
 
+  // The lockout is checked *before* the passcode is verified: a locked out
+  // install must not spend any bcrypt time on the attempt.
+  try {
+    await assertLoginAllowed()
+  } catch (error) {
+    if (error instanceof LoginLockedError) {
+      return authFailure("too-many-attempts")
+    }
+    throw error
+  }
+
   const user = await getCurrentUser()
   if (!user) {
     redirect("/setup")
@@ -103,8 +136,13 @@ export async function login(formData: FormData): Promise<AuthActionResult> {
 
   const matches = await verifyPassword(parsed.data.password, user.passwordHash)
   if (!matches) {
+    // One more failure — the lockout grows with every one of them.
+    await recordLoginFailure()
     return authFailure("invalid-passcode")
   }
+
+  // A successful login clears the throttle.
+  await recordLoginSuccess()
 
   await createSession(user.id)
   redirect("/dashboard")

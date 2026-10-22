@@ -86,8 +86,12 @@ let seedQueue: Promise<unknown> = Promise.resolve()
  * `categories` table is empty. Emptying one table therefore never
  * duplicates the other, and calling this repeatedly is a no-op.
  *
- * Both checks run inside a single transaction, so a failure can never leave
- * the database half-seeded.
+ * The two checks run *outside* the transaction, so the common case — the
+ * database is seeded already — does not open a write transaction at all.
+ * Opening one took a write lock on every authenticated page render, which
+ * is a lot of lock for a call that does nothing. The inserts still run
+ * inside a single transaction, so a failure can never leave the database
+ * half-seeded.
  *
  * The calls are also serialised **within this process**: the check-then-insert
  * above is a read followed by a write, so two genuinely concurrent first
@@ -114,9 +118,18 @@ export async function ensureSeedData(): Promise<void> {
 async function seedDefaults(): Promise<void> {
   const now = Date.now()
 
+  // The checks run outside the transaction: when both tables already hold
+  // their rows there is nothing to seed and no transaction is opened at all.
+  const existingAccounts = await db.select({ id: accounts.id }).from(accounts).limit(1)
+  const existingCategories = await db.select({ id: categories.id }).from(categories).limit(1)
+
+  const needsAccounts = existingAccounts.length === 0
+  const needsCategories = existingCategories.length === 0
+
+  if (!needsAccounts && !needsCategories) return
+
   await db.transaction(async (tx) => {
-    const existingAccounts = await tx.select({ id: accounts.id }).from(accounts).limit(1)
-    if (existingAccounts.length === 0) {
+    if (needsAccounts) {
       await tx.insert(accounts).values(
         DEFAULT_ACCOUNTS.map((account, index) => ({
           id: crypto.randomUUID(),
@@ -131,8 +144,7 @@ async function seedDefaults(): Promise<void> {
       )
     }
 
-    const existingCategories = await tx.select({ id: categories.id }).from(categories).limit(1)
-    if (existingCategories.length === 0) {
+    if (needsCategories) {
       // `sort_order` is the index within each kind so both lists start at 0.
       const kindCounters: Record<CategoryKind, number> = { income: 0, expense: 0 }
 

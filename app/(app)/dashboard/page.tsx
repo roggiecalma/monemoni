@@ -1,25 +1,14 @@
 import { connection } from "next/server"
 
+import { lastDayOfMonth, monthKey } from "@/lib/dates"
 import {
   getAccountBalances,
-  getAccounts,
   getCategories,
   getSummary,
   getTransactions,
 } from "@/lib/db/queries"
 import type { AccountType, TransactionType } from "@/lib/db/schema"
 import { formatDate, formatMonth, formatPeso } from "@/lib/money/format"
-
-/** `YYYY-MM` for a date, using the server's local calendar. */
-function monthKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
-}
-
-/** `YYYY-MM-DD` of the last day of the given date's month. */
-function lastDayOfMonth(date: Date): string {
-  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
-  return `${monthKey(date)}-${String(lastDay).padStart(2, "0")}`
-}
 
 const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   cash: "Cash",
@@ -72,15 +61,16 @@ export default async function DashboardPage() {
   const now = new Date()
   const month = monthKey(now)
 
-  const [summary, accounts, balances, categories, transactions] = await Promise.all([
+  const [summary, balances, categories, transactions] = await Promise.all([
     getSummary(`${month}-01`, lastDayOfMonth(now)),
-    getAccounts(),
     getAccountBalances(),
     getCategories(),
     getTransactions({ limit: RECENT_LIMIT }),
   ])
 
-  const accountById = new Map(accounts.map((account) => [account.id, account]))
+  // The balances already carry every account, so the names come from there —
+  // no second lookup of the accounts is needed.
+  const accountNames = new Map(balances.map((balance) => [balance.id, balance.name]))
   const categoryById = new Map(categories.map((category) => [category.id, category]))
 
   // Net worth = what you own minus what you owe. Balances are signed and a
@@ -131,19 +121,17 @@ export default async function DashboardPage() {
       <Card title="Account balances">
         <ul className="divide-y divide-border">
           {balances.map((balance) => {
-            const account = accountById.get(balance.id)
-            const isLiability = account?.isLiability ?? false
             // A liability holds a negative balance while money is owed. It is
             // shown as a magnitude with an "owed" label, never as a bare
             // negative amount.
-            const owed = isLiability && balance.balance < 0
+            const owed = balance.isLiability && balance.balance < 0
 
             return (
               <li key={balance.id} className="flex items-center justify-between gap-3 py-2.5">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{balance.name}</p>
                   <p className="text-xs text-ink-muted">
-                    {isLiability ? "Liability" : ACCOUNT_TYPE_LABELS[balance.type]}
+                    {balance.isLiability ? "Liability" : ACCOUNT_TYPE_LABELS[balance.type]}
                   </p>
                 </div>
                 <p className="shrink-0 text-sm font-semibold tabular-nums">
@@ -162,7 +150,7 @@ export default async function DashboardPage() {
         <Card title="Recent transactions">
           <ul className="divide-y divide-border">
             {transactions.map((transaction) => {
-              const account = accountById.get(transaction.accountId)
+              const accountName = accountNames.get(transaction.accountId)
               const category = transaction.categoryId
                 ? categoryById.get(transaction.categoryId)
                 : undefined
@@ -174,9 +162,9 @@ export default async function DashboardPage() {
               const title = note || categoryLabel
               const detail = [
                 note ? categoryLabel : null,
-                account?.name ?? null,
+                accountName ?? null,
                 transaction.type === "transfer" && transaction.toAccountId
-                  ? `→ ${accountById.get(transaction.toAccountId)?.name ?? "account"}`
+                  ? `→ ${accountNames.get(transaction.toAccountId) ?? "account"}`
                   : null,
               ]
                 .filter(Boolean)

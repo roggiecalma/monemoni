@@ -31,6 +31,7 @@ const contentSecurityPolicy = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
+  "frame-src 'none'",
   "frame-ancestors 'none'",
 ].join("; ")
 
@@ -40,6 +41,12 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-DNS-Prefetch-Control", value: "off" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  // HSTS is only safe over HTTPS: sending it on `http://localhost` makes
+  // the browser refuse to load the app at all, so it is limited to
+  // production (the only place the app is served over HTTPS).
+  ...(isProduction
+    ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }]
+    : []),
   { key: "Content-Security-Policy", value: contentSecurityPolicy },
 ]
 
