@@ -4,14 +4,20 @@ out/
 build/
 coverage/
 
-.env
-.env.local
-.env*.local
+# Throwaway SQLite database used by the test suite
+.tmp/
+
+# Every env variant is ignored (`.env`, `.env.local`, `.env.production`, …)
+# so a secret is never committed by accident. The template stays tracked.
+.env*
+!.env.example
 
 *.db
 *.db-journal
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite3
 
 .vercel
 .DS_Store

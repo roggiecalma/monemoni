@@ -45,6 +45,29 @@ function trimTrailingZero(value: string): string {
   return value.endsWith(".0") ? value.slice(0, -2) : value
 }
 
+/** Days per month for a non-leap year, indexed by month number (1–12). */
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const
+
+/**
+ * A year is a leap year when it is divisible by 4, except for century years,
+ * which must also be divisible by 400 (`2024` yes, `1900` no, `2000` yes).
+ */
+function isLeapYear(year: number): boolean {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+}
+
+/**
+ * Number of days in a month (1–12) of a given year.
+ *
+ * This is a pure integer calculation on purpose: parsing the date string
+ * would silently roll impossible dates over into the next month
+ * (`new Date("2026-02-31")` is March 3rd).
+ */
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) return isLeapYear(year) ? 29 : 28
+  return DAYS_IN_MONTH[month - 1] ?? 0
+}
+
 /**
  * Formats centavos as a peso amount: `123456` → `"₱1,234.56"`,
  * `-123456` → `"-₱1,234.56"`.
@@ -103,16 +126,18 @@ export function formatMonth(month: string): string {
 
 /**
  * Formats a `YYYY-MM-DD` date: `"2026-10-21"` → `"Oct 21, 2026"`.
- * Unrecognised input is returned unchanged.
+ * Unrecognised input — including impossible dates such as `"2026-02-31"` —
+ * is returned unchanged.
  */
 export function formatDate(date: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(date.trim())
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim())
   if (!match) return date
 
   const year = Number(match[1])
   const month = Number(match[2])
   const day = Number(match[3])
-  if (month < 1 || month > 12 || day < 1 || day > 31) return date
+  if (month < 1 || month > 12) return date
+  if (day < 1 || day > daysInMonth(year, month)) return date
 
   return `${MONTH_NAMES_SHORT[month - 1]} ${day}, ${year}`
 }

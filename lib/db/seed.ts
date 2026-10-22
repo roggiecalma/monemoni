@@ -1,9 +1,11 @@
 /**
  * MoneMoni — default seed data.
  *
- * Applied automatically the first time the app runs against an empty
- * `categories` table. Idempotent: if any category already exists, nothing
- * happens.
+ * Applied automatically on startup. Accounts and categories are seeded
+ * **independently and idempotently**: each set is inserted only while its
+ * own table is empty, so emptying one table can never duplicate the rows of
+ * the other and re-running never duplicates anything. Concurrent calls are
+ * serialised so two racing first requests cannot both insert.
  *
  * SERVER ONLY (imports `lib/db/client`).
  */
@@ -67,43 +69,85 @@ export const DEFAULT_CATEGORIES: readonly SeedCategory[] = [
 ]
 
 /**
- * Inserts the default accounts and categories if — and only if — the
- * `categories` table is empty. Safe to call on every request.
+ * Serialises the seeding calls that happen inside this process.
+ *
+ * Every call queues onto this chain, so two concurrent callers (a dashboard
+ * render racing a prefetch, for example) run one after another instead of in
+ * parallel. The chain never rejects, so a failed call cannot poison the queue
+ * for the calls that come after it.
+ */
+let seedQueue: Promise<unknown> = Promise.resolve()
+
+/**
+ * Inserts the default accounts and categories that are missing.
+ *
+ * Each set is gated on its own table: the accounts are inserted only while
+ * the `accounts` table is empty and the categories only while the
+ * `categories` table is empty. Emptying one table therefore never
+ * duplicates the other, and calling this repeatedly is a no-op.
+ *
+ * Both checks run inside a single transaction, so a failure can never leave
+ * the database half-seeded.
+ *
+ * The calls are also serialised **within this process**: the check-then-insert
+ * above is a read followed by a write, so two genuinely concurrent first
+ * requests could both see empty tables and both insert — ten default accounts
+ * instead of five. Queueing the calls removes that window.
+ *
+ * Residual limitation: this only closes the race *inside one process*. Two
+ * separate server instances (or two separate Vercel serverless instances) can
+ * still race, because SQLite's write lock does not span processes for this
+ * read-then-write pattern. Closing that would need a unique constraint or an
+ * `INSERT ... WHERE NOT EXISTS` statement, which is out of scope here.
  */
 export async function ensureSeedData(): Promise<void> {
-  const existing = await db.select({ id: categories.id }).from(categories).limit(1)
-  if (existing.length > 0) return
+  const result = seedQueue.then(() => seedDefaults())
 
+  // The queue itself must stay usable after a failure: the error belongs to
+  // the caller of the failing call, not to the callers that come next.
+  seedQueue = result.catch(() => undefined)
+
+  await result
+}
+
+/** Runs the actual seeding inside a single transaction. */
+async function seedDefaults(): Promise<void> {
   const now = Date.now()
 
   await db.transaction(async (tx) => {
-    await tx.insert(accounts).values(
-      DEFAULT_ACCOUNTS.map((account, index) => ({
-        id: crypto.randomUUID(),
-        name: account.name,
-        type: account.type,
-        isLiability: account.isLiability,
-        openingBalance: 0,
-        archived: false,
-        sortOrder: index,
-        createdAt: now,
-      })),
-    )
+    const existingAccounts = await tx.select({ id: accounts.id }).from(accounts).limit(1)
+    if (existingAccounts.length === 0) {
+      await tx.insert(accounts).values(
+        DEFAULT_ACCOUNTS.map((account, index) => ({
+          id: crypto.randomUUID(),
+          name: account.name,
+          type: account.type,
+          isLiability: account.isLiability,
+          openingBalance: 0,
+          archived: false,
+          sortOrder: index,
+          createdAt: now,
+        })),
+      )
+    }
 
-    // `sort_order` is the index within each kind so both lists start at 0.
-    const kindCounters: Record<CategoryKind, number> = { income: 0, expense: 0 }
+    const existingCategories = await tx.select({ id: categories.id }).from(categories).limit(1)
+    if (existingCategories.length === 0) {
+      // `sort_order` is the index within each kind so both lists start at 0.
+      const kindCounters: Record<CategoryKind, number> = { income: 0, expense: 0 }
 
-    await tx.insert(categories).values(
-      DEFAULT_CATEGORIES.map((category) => ({
-        id: crypto.randomUUID(),
-        name: category.name,
-        kind: category.kind,
-        icon: category.icon,
-        color: category.color,
-        archived: false,
-        sortOrder: kindCounters[category.kind]++,
-        createdAt: now,
-      })),
-    )
+      await tx.insert(categories).values(
+        DEFAULT_CATEGORIES.map((category) => ({
+          id: crypto.randomUUID(),
+          name: category.name,
+          kind: category.kind,
+          icon: category.icon,
+          color: category.color,
+          archived: false,
+          sortOrder: kindCounters[category.kind]++,
+          createdAt: now,
+        })),
+      )
+    }
   })
 }

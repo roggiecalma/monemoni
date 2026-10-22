@@ -29,6 +29,7 @@ Do **not** add dependencies without a strong reason. Do not upgrade pinned versi
 - Amounts in the `transactions` table are always **positive**. Direction is expressed by `type`, not by sign.
 - Formatting: `Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" })` → `₱1,234.56`.
 - Parsing user input must be **string arithmetic, never float math** (`lib/money/parse.ts`).
+- User input may contain thousands separators, but they must be **well formed**: groups of exactly three digits, with a first group of one to three digits (`1,234`, `1,234,567`). A malformed grouping (`1,23`, `1,2,3`, `1234,567`) is **rejected**, never silently reinterpreted as a different amount.
 - The schema keeps a `currency` column defaulting to `"PHP"` so USD can be added later without a migration.
 
 ## Date rules
@@ -65,11 +66,19 @@ Indexes: `transactions(date)`, `transactions(account_id)`, `transactions(categor
 - **Goal contributions are separate from spending.** Money moved into a savings goal is set aside, not spent, so it must not appear in expense totals or category breakdowns.
 - **`recurring_id`** links a generated transaction back to the bill that produced it.
 
+### Liability sign convention
+
+- A balance is a **signed** number of centavos, and the balance formula above is the only definition of it.
+- A **liability** account (`is_liability = true`, e.g. a credit card) holds a **negative balance when money is owed**. Spending on the card makes the balance more negative; paying the card (a transfer *into* it) moves it back towards zero.
+- The `opening_balance` of a liability is therefore entered as a negative amount (owing ₱5,000 → `-500000`).
+- **Net worth = the sum of every account balance**, liabilities included. Because a liability balance is negative, a liability reduces net worth.
+- The UI shows a liability's balance as a magnitude with an **"owed"** label (e.g. `₱5,000.00 owed`), never as a bare negative amount; every calculation uses the signed value.
+
 ---
 
 ## Default seed data
 
-Applied automatically the first time the app runs with an empty `categories` table (`lib/db/seed.ts`).
+Applied automatically on first run (`lib/db/seed.ts`). Accounts and categories are seeded **independently and idempotently**: each is inserted only while its own table is empty, so emptying one table can never duplicate the rows of the other.
 
 **Accounts:** Cash Wallet (`cash`), BPI Bank (`bank`), GCash (`ewallet`), Maya (`ewallet`), Credit Card (`card`, `is_liability = true`).
 
@@ -94,11 +103,22 @@ Single user. No signup, no email, no OAuth.
 ## Code conventions
 
 - **Server Components by default.** Add `"use client"` only when genuinely needed (a form with client state, a native date picker). Prefer plain HTML `<form>` elements with Server Actions over client-side fetch.
-- All writes go through **Server Actions** in `lib/actions/*.ts`. Each action: `requireSession()` → `zod` parse → DB write → `revalidatePath()`.
+- All writes go through **Server Actions** in `lib/actions/*.ts`. Each action: `requireSession()` → `zod` parse → DB write → `redirect()`.
+  - `requireSession()` is required for **every** action that touches user data. The only exemptions are the two **pre-auth** actions — `setupPasscode` and `login` — which by definition run before a session can exist. They must never touch existing user data.
+  - Actions finish with `redirect()` (post/redirect/get). Every page reads live from the database and the navigation uses plain `<a>` links rather than the client router, so there is no router cache to invalidate and `revalidatePath()` is not required. Call it if client-side navigation is ever introduced.
 - Reads happen in Server Components, querying the DB directly.
 - No `any`. No `@ts-ignore`. No non-null assertions on possibly-undefined values.
+- Parse every user-entered amount with `parsePesoToCentavosSafe()` and branch on `result.ok`. **Never** test a parsed amount for truthiness — ₱0.00 is a valid amount and `0` is falsy.
 - Tailwind utility classes only; no custom CSS beyond `app/globals.css` design tokens.
 - Keep components small and server-rendered. Charts are plain SVG components in `components/charts/`.
+
+### Accepted trade-offs
+
+Decisions that are deliberate, so nobody re-litigates them later:
+
+- **The Content-Security-Policy allows `'unsafe-inline'`** for scripts and styles, because Next.js injects inline bootstrap scripts. A nonce-based policy needs `proxy.ts` and forces every page to be dynamically rendered — too much for this app. The app renders no raw HTML and no user-controlled markup, so `'unsafe-inline'` is the smaller risk. Revisit if user-generated content is ever rendered.
+- **`lib/db/client.ts` guards client imports with a runtime `typeof window` check**, not `import "server-only"`. The `server-only` package is not a dependency, the project does not add dependencies without a strong reason, and the runtime check already fails loudly on an accidental client import.
+- **`formatPeso` divides centavos by 100** and lets `Intl.NumberFormat` do the formatting, which is what the money rules above prescribe. The result can differ by one centavo only above roughly 2⁴⁷ centavos (about ₱90 trillion), which no personal balance reaches.
 
 ## Environment
 

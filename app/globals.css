@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+/* --------------------------------------------------------------------------
+ * Design tokens
+ *
+ * Colours are declared as plain CSS custom properties so the app can follow
+ * the operating system's light/dark preference, and are then exposed to
+ * Tailwind through `@theme inline` (the utilities reference the variable
+ * directly, so a media query can swap the value at runtime).
+ * -------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light dark;
+
+  /* Neutral surface ramp — light theme */
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --surface-raised: #ffffff;
+  --border: #e2e8f0;
+  --ink: #0f172a;
+  --ink-muted: #64748b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Neutral surface ramp — dark theme */
+    --surface: #0b1220;
+    --surface-muted: #0f1729;
+    --surface-raised: #162032;
+    --border: #1f2a3d;
+    --ink: #e2e8f0;
+    --ink-muted: #94a3b8;
+  }
+}
+
+@theme {
+  /* Base font stack */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+@theme inline {
+  /* Brand */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+
+  /* Neutral surface ramp */
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+
+  /* Semantic money colours */
+  --color-income: #10b981;
+  --color-expense: #f43f5e;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--surface-muted);
+    color: var(--ink);
+  }
+}
