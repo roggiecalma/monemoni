@@ -121,17 +121,17 @@ export default async function AccountsPage() {
             return (
               <li
                 key={account.id}
-                className="group relative overflow-hidden rounded-2xl border border-border bg-surface-raised p-5 shadow-sm ring-1 ring-black/[0.015] transition hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md dark:ring-white/[0.02]"
+                className="group relative overflow-hidden rounded-2xl border border-border bg-surface-raised p-4 shadow-sm ring-1 ring-black/[0.015] transition hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md dark:ring-white/[0.02]"
               >
                 <div className="flex items-start justify-between gap-3">
                   <span
-                    className={`grid size-11 place-items-center rounded-xl ${
+                    className={`grid size-10 place-items-center rounded-xl ${
                       account.isLiability
                         ? "bg-expense/10 text-expense"
                         : "bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300"
                     }`}
                   >
-                    <Icon name={ACCOUNT_TYPE_ICONS[account.type]} className="size-5" />
+                    <Icon name={ACCOUNT_TYPE_ICONS[account.type]} className="size-4" />
                   </span>
 
                   <a
@@ -143,7 +143,7 @@ export default async function AccountsPage() {
                   </a>
                 </div>
 
-                <div className="mt-5">
+                <div className="mt-3">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-base font-semibold text-ink">{account.name}</p>
                     {account.isLiability ? (
@@ -155,7 +155,7 @@ export default async function AccountsPage() {
                 </div>
 
                 <p
-                  className={`mt-4 font-display text-2xl font-semibold tracking-tight tabular-nums ${
+                  className={`mt-2 font-display text-xl font-semibold tracking-tight tabular-nums ${
                     owedAmount ? "text-expense" : "text-ink"
                   }`}
                 >
