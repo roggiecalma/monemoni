@@ -10,7 +10,7 @@ Personal finance app for Philippine pesos. Next.js App Router + Turso (hosted SQ
 
 | Layer | Choice |
 | --- | --- |
-| Framework | Next.js 16.4.2 (App Router, React 19.3.1, Server Components) |
+| Framework | Next.js 16.4.6 (App Router, React 19.3.1, Server Components) |
 | Language | TypeScript 5.9.3, `strict: true` |
 | Database | Turso / libSQL (`@libsql/client` 0.18.0) — hosted SQLite, local file in dev |
 | ORM | Drizzle ORM 0.45.4 + drizzle-kit 0.31.11 (`dialect: "turso"`) |

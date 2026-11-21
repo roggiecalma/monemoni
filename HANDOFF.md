@@ -86,7 +86,7 @@ tests/                   139 tests across money, auth, auth-errors, actions,
 
 - `npm run typecheck` — clean.
 - `npm test` — **139 tests, all green** (7 files). The `auth-errors` suite is resynced with the Wave A‴ codes (`too-long`, `too-many-attempts`) and pins the own-property lookup, so the prototype-chain regression cannot come back. Run repeatedly with identical results.
-- `npm run build` — succeeds. Routes: `/`, `/dashboard`, `/accounts`, `/accounts/new`, `/accounts/[id]/edit`, `/categories`, `/categories/new`, `/categories/[id]/edit`, `/login`, `/setup` are dynamic (`ƒ`); only `/_not-found`, `/icon.svg`, `/manifest.webmanifest` are static. **Note:** Next.js 16.4.2 trips the built-in security-advisory reminder on the first build; retrying lets the build finish. An upgrade is pending.
+- `npm run build` — succeeds cleanly. Routes: `/`, `/dashboard`, `/accounts`, `/accounts/new`, `/accounts/[id]/edit`, `/categories`, `/categories/new`, `/categories/[id]/edit`, `/login`, `/setup` are dynamic (`ƒ`); only `/_not-found`, `/icon.svg`, `/manifest.webmanifest` are static. Next.js is pinned at **16.4.6** (security upgrade from 16.4.2), which resolves the advisory reminder.
 - Security headers are **actually served** (verified with `curl`): nosniff, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, and a CSP. Dynamic pages send `Cache-Control: no-store`.
 - Full auth flow exercised in dev **and** in a production build: setup → dashboard → logout, with the `mm_session` cookie carrying `HttpOnly`, `SameSite=lax`, `Max-Age=2592000`.
 - Client JS on the production dashboard: 6 chunks, 570 KB raw / **174 KB gzip** — all React + App Router baseline, no third-party client code. Exactly one `"use client"` file in the tree.
