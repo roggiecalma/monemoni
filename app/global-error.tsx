@@ -49,6 +49,16 @@ export default function GlobalError({
         }}
       >
         <div style={{ textAlign: "center", maxWidth: "24rem" }}>
+          <div
+            aria-hidden="true"
+            style={{
+              width: "2.75rem",
+              height: "2.75rem",
+              margin: "0 auto 1rem",
+              borderRadius: "0.875rem",
+              background: "linear-gradient(135deg, #10b981, #047857)",
+            }}
+          />
           <h1 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 600 }}>
             Something went wrong
           </h1>
@@ -67,8 +77,8 @@ export default function GlobalError({
               marginTop: "1rem",
               padding: "0.5rem 1rem",
               border: "none",
-              borderRadius: "0.5rem",
-              background: "#2563eb",
+              borderRadius: "0.75rem",
+              background: "#047857",
               color: "#ffffff",
               fontSize: "0.875rem",
               fontWeight: 600,

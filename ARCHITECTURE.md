@@ -35,6 +35,7 @@ Do **not** add dependencies without a strong reason. Do not upgrade pinned versi
 ## Date rules
 
 - Transaction and bill dates are stored as `TEXT` in `YYYY-MM-DD` form (a local calendar date, never a timestamp).
+- A transaction also keeps a **time of day** in a separate nullable `TEXT` column, `HH:MM` (`00:00`–`23:59`). It is separate from `date` on purpose: every month/day grouping, budget and report keeps working on a calendar date, while the time gives ordering within a day and a precise display. `NULL` means "time unknown" — the column was added after the first rows existed, so old records stay valid without a time. The form defaults it to the current local time. Seconds are not stored: they are noise on a personal ledger entry.
 - Months are `TEXT` in `YYYY-MM` form.
 - Timestamps that are not calendar dates (`created_at`, `updated_at`, `expires_at`) are `INTEGER` epoch milliseconds.
 
@@ -52,7 +53,7 @@ All tables use `text` primary keys holding `crypto.randomUUID()`. Boolean column
 | `sessions` | `id` (sha256 hex of the raw token), `user_id` → users, `created_at`, `expires_at` |
 | `accounts` | `id`, `name`, `type` (`cash`\|`bank`\|`ewallet`\|`card`), `opening_balance`, `is_liability`, `archived`, `sort_order`, `created_at` |
 | `categories` | `id`, `name`, `kind` (`income`\|`expense`), `icon`, `color`, `archived`, `sort_order`, `created_at` |
-| `transactions` | `id`, `date`, `type` (`income`\|`expense`\|`transfer`), `amount`, `category_id`?, `account_id`, `to_account_id`?, `note`?, `recurring_id`?, `created_at`, `updated_at` |
+| `transactions` | `id`, `date`, `time`?, `type` (`income`\|`expense`\|`transfer`), `amount`, `category_id`?, `account_id`, `to_account_id`?, `note`?, `recurring_id`?, `created_at`, `updated_at` |
 | `budgets` | `id`, `category_id`, `month` (`YYYY-MM`), `amount` — unique on (`category_id`, `month`) |
 | `recurring_bills` | `id`, `name`, `amount`, `category_id`, `account_id`, `frequency` (`weekly`\|`monthly`\|`yearly`), `day_of_month`, `start_date`, `end_date`?, `active`, `last_materialized` (`YYYY-MM`), `created_at` |
 | `savings_goals` | `id`, `name`, `target_amount`, `target_date`?, `color`, `archived`, `created_at` |
@@ -69,6 +70,7 @@ Indexes: `transactions(date)`, `transactions(account_id)`, `transactions(categor
 - **`recurring_id`** links a generated transaction back to the bill that produced it.
 - **Category totals are driven by the transaction's direction, not the category's kind.** A transaction belongs to the income or the expense breakdown according to its own `type`; the category only decides how it is *grouped*. A transaction with no category is grouped under **Uncategorized** within its own direction, so uncategorised spending is never lost from a breakdown. The mapping from a category kind to a transaction direction is exhaustive and type-checked, so adding a new kind is a compile error rather than a silently empty breakdown. A transaction whose category kind disagrees with its type is a data-integrity error — writes must reject it.
 - **Archiving is a management concept, not a ledger concept.** Accounts and categories carry an `archived` flag. An archived record is hidden from the *pickers* (the dropdowns in the transaction form) and is listed separately on its management screen with a Restore button — but it stays in the ledger: it still holds a balance, still appears in totals, and a historic transaction still shows its name and colour. Archiving is the only removal operation for an account or a category; they are never hard-deleted, because transactions reference them.
+- **Transactions are the one record type that can be deleted.** They carry no `archived` flag, so the edit screen offers a real, irreversible delete behind a two-step `<details>` confirmation. The rest of the ledger is append-and-correct only.
 
 ### Liability sign convention
 

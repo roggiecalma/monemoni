@@ -3,7 +3,7 @@
  * Error boundary for the authenticated routes.
  *
  * It lives inside the `(app)` group, so it is rendered inside the app
- * shell: the user keeps the header and the navigation and only the screen
+ * shell: the user keeps the sidebar and navigation and only the screen
  * itself is replaced by the fallback.
  *
  * Error boundaries must be Client Components, so this file is the one
@@ -34,16 +34,33 @@ export default function AppSectionError({
     : null
 
   return (
-    <section className="rounded-xl border border-border bg-surface p-6 text-center shadow-sm">
-      <h1 className="text-base font-semibold">Something went wrong</h1>
-      <p className="mx-auto mt-1 max-w-sm text-sm text-ink-muted">
+    <section className="rounded-2xl border border-border bg-surface-raised p-8 text-center shadow-sm ring-1 ring-black/[0.015] dark:ring-white/[0.02]">
+      <span className="mx-auto grid size-11 place-items-center rounded-2xl bg-expense/10 text-expense">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.75}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          className="size-5"
+        >
+          <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+          <path d="M12 9v4M12 17h.01" />
+        </svg>
+      </span>
+      <h1 className="mt-4 font-display text-xl font-semibold tracking-tight">
+        Something went wrong
+      </h1>
+      <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-ink-muted">
         This screen could not be loaded. Nothing was changed — you can try again.
       </p>
-      {digest ? <p className="mt-2 text-xs text-ink-muted">Reference: {digest}</p> : null}
+      {digest ? <p className="mt-2 text-xs text-ink-subtle">Reference: {digest}</p> : null}
       <button
         type="button"
         onClick={() => retry()}
-        className="mt-3 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+        className="mt-5 inline-flex items-center justify-center rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-800"
       >
         Try again
       </button>

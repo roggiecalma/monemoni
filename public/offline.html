@@ -16,21 +16,21 @@
       :root {
         color-scheme: light dark;
         --surface: #ffffff;
-        --surface-muted: #f8fafc;
-        --border: #e2e8f0;
-        --ink: #0f172a;
-        --ink-muted: #64748b;
-        --brand: #2563eb;
+        --surface-muted: #f5f7f3;
+        --border: #e1e7e1;
+        --ink: #0d1f18;
+        --ink-muted: #56665e;
+        --brand: #047857;
       }
 
       @media (prefers-color-scheme: dark) {
         :root {
-          --surface: #0b1220;
-          --surface-muted: #0f1729;
-          --border: #1f2a3d;
-          --ink: #e2e8f0;
-          --ink-muted: #94a3b8;
-          --brand: #3b82f6;
+          --surface: #101c17;
+          --surface-muted: #060d0a;
+          --border: #1d2d26;
+          --ink: #e7f0eb;
+          --ink-muted: #9bada4;
+          --brand: #10b981;
         }
       }
 
@@ -57,9 +57,9 @@
         max-width: 22rem;
         padding: 1.25rem;
         border: 1px solid var(--border);
-        border-radius: 0.75rem;
+        border-radius: 1rem;
         background-color: var(--surface);
-        box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
+        box-shadow: 0 1px 2px rgb(13 31 24 / 0.05), 0 16px 40px -24px rgb(13 31 24 / 0.25);
         text-align: center;
       }
 
@@ -69,8 +69,8 @@
         width: 3rem;
         height: 3rem;
         margin: 0 auto 1rem;
-        border-radius: 0.75rem;
-        background-color: var(--brand);
+        border-radius: 0.875rem;
+        background: linear-gradient(135deg, #10b981, #047857);
         color: #ffffff;
         font-size: 1.125rem;
         font-weight: 700;
@@ -93,7 +93,7 @@
       .retry {
         display: inline-block;
         padding: 0.625rem 1rem;
-        border-radius: 0.5rem;
+        border-radius: 0.75rem;
         background-color: var(--brand);
         color: #ffffff;
         font-size: 0.875rem;

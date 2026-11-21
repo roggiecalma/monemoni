@@ -10,6 +10,10 @@ import {
 } from "@/lib/validation/accounts"
 import { lookupMessage } from "@/lib/validation/errors"
 
+import { Icon } from "@/components/ui/icons"
+import { ErrorNote, Field, FormPanel, PageHeader } from "@/components/ui/primitives"
+import { inputClass, primaryButtonClass } from "@/lib/ui"
+
 /**
  * New account screen. Server Component — the form posts to a Server
  * Action, so the page ships no client JavaScript.
@@ -41,100 +45,94 @@ export default async function NewAccountPage({
   const message = lookupMessage(ACCOUNT_ERROR_MESSAGES, error)
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">New account</h1>
-        <p className="mt-0.5 text-sm text-ink-muted">
-          Add a cash wallet, a bank account, an e-wallet or a card.
-        </p>
-      </div>
-
-      <form
-        action={submit}
-        className="space-y-4 rounded-xl border border-border bg-surface p-5 shadow-sm"
+    <div className="mx-auto max-w-xl space-y-5">
+      <a
+        href="/accounts"
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted transition hover:text-ink"
       >
-        <div className="space-y-1.5">
-          <label htmlFor="name" className="block text-sm font-medium">
-            Name
-          </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            required
-            maxLength={ACCOUNT_NAME_MAX_LENGTH}
-            autoFocus
-            placeholder="BPI Bank"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
-          />
-        </div>
+        <Icon name="arrow-left" className="size-3.5" />
+        Back to accounts
+      </a>
 
-        <div className="space-y-1.5">
-          <label htmlFor="type" className="block text-sm font-medium">
-            Type
-          </label>
-          <select
-            id="type"
-            name="type"
-            defaultValue="cash"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
-          >
-            {ACCOUNT_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {ACCOUNT_TYPE_LABELS[type]}
-              </option>
-            ))}
-          </select>
-        </div>
+      <PageHeader
+        eyebrow="Accounts"
+        title="New account"
+        description="Add a cash wallet, a bank account, an e-wallet or a card."
+      />
 
-        <div className="space-y-1.5">
-          <label className="flex items-start gap-2 text-sm font-medium">
+      <form action={submit}>
+        <FormPanel>
+          <Field htmlFor="name" label="Name">
             <input
-              type="checkbox"
-              name="isLiability"
-              className="mt-0.5 size-4 shrink-0 rounded border-border"
+              id="name"
+              name="name"
+              type="text"
+              required
+              maxLength={ACCOUNT_NAME_MAX_LENGTH}
+              autoFocus
+              placeholder="BPI Bank"
+              className={inputClass}
             />
-            <span>This is money I owe (a credit card or loan)</span>
-          </label>
-          <p className="text-xs text-ink-muted">
-            A liability is money owed, so its balance lowers your net worth.
-          </p>
-        </div>
+          </Field>
 
-        <div className="space-y-1.5">
-          <label htmlFor="openingBalance" className="block text-sm font-medium">
-            Opening balance
-          </label>
-          <input
-            id="openingBalance"
-            name="openingBalance"
-            type="text"
-            inputMode="decimal"
-            placeholder="0.00"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
-          />
-          <p className="text-xs text-ink-muted">
-            Leave empty for zero. For a credit card or loan, enter the amount you owe — it is
-            recorded as money owed.
-          </p>
-        </div>
+          <Field htmlFor="type" label="Type">
+            <select id="type" name="type" defaultValue="cash" className={inputClass}>
+              {ACCOUNT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {ACCOUNT_TYPE_LABELS[type]}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-        {message ? (
-          <p
-            role="alert"
-            className="rounded-lg bg-expense/10 px-3 py-2 text-sm font-medium text-expense"
+          <div className="rounded-xl border border-border bg-surface-muted px-4 py-3.5">
+            <label className="flex cursor-pointer items-start gap-3 text-sm font-medium">
+              <input
+                type="checkbox"
+                name="isLiability"
+                className="mt-0.5 size-4 shrink-0 rounded border-border accent-brand-700"
+              />
+              <span>
+                This is money I owe
+                <span className="mt-0.5 block text-xs font-normal leading-relaxed text-ink-muted">
+                  A credit card or loan. Its balance lowers your net worth.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <Field
+            htmlFor="openingBalance"
+            label="Opening balance"
+            hint="Leave empty for zero. For a credit card or loan, enter the amount you owe — it is recorded as money owed."
           >
-            {message}
-          </p>
-        ) : null}
+            <div className="relative">
+              <span className="pointer-events-none absolute inset-y-0 left-3.5 grid place-items-center text-sm font-medium text-ink-subtle">
+                ₱
+              </span>
+              <input
+                id="openingBalance"
+                name="openingBalance"
+                type="text"
+                inputMode="decimal"
+                placeholder="0.00"
+                className={`${inputClass} pl-8`}
+              />
+            </div>
+          </Field>
 
-        <button
-          type="submit"
-          className="w-full rounded-lg bg-brand-600 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
-        >
-          Create account
-        </button>
+          {message ? <ErrorNote message={message} /> : null}
+
+          <button type="submit" className={`${primaryButtonClass} w-full`}>
+            <Icon name="plus" className="size-4" />
+            Create account
+          </button>
+        </FormPanel>
       </form>
+
+      <p className="text-center text-xs text-ink-subtle">
+        Accounts are never deleted — you can archive them later without losing history.
+      </p>
     </div>
   )
 }

@@ -12,62 +12,113 @@
 :root {
   color-scheme: light dark;
 
-  /* Neutral surface ramp — light theme */
+  /* Warm neutral surface ramp — light theme */
   --surface: #ffffff;
-  --surface-muted: #f8fafc;
+  --surface-muted: #f5f7f3;
   --surface-raised: #ffffff;
-  --border: #e2e8f0;
-  --ink: #0f172a;
-  --ink-muted: #64748b;
+  --surface-sunken: #edf1ec;
+  --border: #e1e7e1;
+  --border-strong: #ccd7cf;
+  --ink: #0d1f18;
+  --ink-muted: #56665e;
+  --ink-subtle: #83938a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Neutral surface ramp — dark theme */
-    --surface: #0b1220;
-    --surface-muted: #0f1729;
-    --surface-raised: #162032;
-    --border: #1f2a3d;
-    --ink: #e2e8f0;
-    --ink-muted: #94a3b8;
+    /* Deep green-black surface ramp — dark theme */
+    --surface: #0a1310;
+    --surface-muted: #060d0a;
+    --surface-raised: #101c17;
+    --surface-sunken: #0c1713;
+    --border: #1d2d26;
+    --border-strong: #2b4037;
+    --ink: #e7f0eb;
+    --ink-muted: #9bada4;
+    --ink-subtle: #6d8279;
   }
 }
 
 @theme {
-  /* Base font stack */
+  /* Base font stacks */
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-display: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino,
+    Georgia, serif;
 }
 
 @theme inline {
-  /* Brand */
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
+  /* Brand — emerald */
+  --color-brand-50: #ecfdf5;
+  --color-brand-100: #d1fae5;
+  --color-brand-200: #a7f3d0;
+  --color-brand-300: #6ee7b7;
+  --color-brand-400: #34d399;
+  --color-brand-500: #10b981;
+  --color-brand-600: #059669;
+  --color-brand-700: #047857;
+  --color-brand-800: #065f46;
+  --color-brand-900: #064e3b;
+
+  /* Warm accent — used sparingly for highlights */
+  --color-accent-400: #fbbf24;
+  --color-accent-500: #f59e0b;
+  --color-accent-600: #d97706;
 
   /* Neutral surface ramp */
   --color-surface: var(--surface);
   --color-surface-muted: var(--surface-muted);
   --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
 
   /* Semantic money colours */
   --color-income: #10b981;
   --color-expense: #f43f5e;
+  --color-income-soft: #ecfdf5;
+  --color-expense-soft: #fff1f2;
 }
 
 @layer base {
   html {
     font-family: var(--font-sans);
     -webkit-text-size-adjust: 100%;
+    scrollbar-gutter: stable;
   }
 
   body {
     background-color: var(--surface-muted);
     color: var(--ink);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  ::selection {
+    background-color: var(--color-brand-200);
+    color: var(--color-brand-900);
+  }
+
+  /* A single, consistent focus treatment for every interactive element. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

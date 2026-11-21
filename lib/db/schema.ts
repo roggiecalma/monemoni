@@ -116,6 +116,13 @@ export const transactions = sqliteTable(
     id: text("id").primaryKey(),
     /** Local calendar date, `YYYY-MM-DD`. */
     date: text("date").notNull(),
+    /**
+     * Local time of day, `HH:MM`. Kept apart from `date` so every month/day
+     * grouping and report keeps working on a calendar date; the time is for
+     * display and for ordering within a day. `NULL` on rows recorded before
+     * times existed.
+     */
+    time: text("time"),
     type: text("type", { enum: TRANSACTION_TYPES }).notNull(),
     /** Always positive centavos — direction lives in `type`. */
     amount: integer("amount").notNull(),

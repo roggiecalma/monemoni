@@ -91,6 +91,7 @@ export interface TransactionFixture {
   type: TransactionType
   amount: number
   accountId: string
+  time?: string
   toAccountId?: string
   categoryId?: string
   note?: string
@@ -102,6 +103,7 @@ export async function insertTransaction(fixture: TransactionFixture): Promise<st
   await db.insert(transactions).values({
     id: fixture.id,
     date: fixture.date,
+    time: fixture.time ?? null,
     type: fixture.type,
     amount: fixture.amount,
     accountId: fixture.accountId,

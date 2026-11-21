@@ -213,6 +213,15 @@ export async function getCategoryById(id: string): Promise<Category | null> {
 }
 
 /**
+ * A single transaction by its id, or `null` when there is no such transaction.
+ */
+export async function getTransactionById(id: string): Promise<Transaction | null> {
+  const rows = await db.select().from(transactions).where(eq(transactions.id, id)).limit(1)
+
+  return rows[0] ?? null
+}
+
+/**
  * Transactions matching the given filters, newest first.
  *
  * Supplying `offset` implies pagination: if `limit` is omitted a page size of

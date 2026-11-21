@@ -12,6 +12,10 @@ import {
 } from "@/lib/validation/accounts"
 import { lookupMessage } from "@/lib/validation/errors"
 
+import { Icon } from "@/components/ui/icons"
+import { ErrorNote, Field, FormPanel, PageHeader } from "@/components/ui/primitives"
+import { dangerButtonClass, inputClass, primaryButtonClass } from "@/lib/ui"
+
 /**
  * Edit account screen. Server Component — the form posts to a Server
  * Action, so the page ships no client JavaScript.
@@ -56,97 +60,85 @@ export default async function EditAccountPage({
   const message = lookupMessage(ACCOUNT_ERROR_MESSAGES, error)
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Edit account</h1>
-        <p className="mt-0.5 text-sm text-ink-muted">{account.name}</p>
-      </div>
-
-      <form
-        action={submit}
-        className="space-y-4 rounded-xl border border-border bg-surface p-5 shadow-sm"
+    <div className="mx-auto max-w-xl space-y-5">
+      <a
+        href="/accounts"
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted transition hover:text-ink"
       >
-        <div className="space-y-1.5">
-          <label htmlFor="name" className="block text-sm font-medium">
-            Name
-          </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            required
-            maxLength={ACCOUNT_NAME_MAX_LENGTH}
-            defaultValue={account.name}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
-          />
-        </div>
+        <Icon name="arrow-left" className="size-3.5" />
+        Back to accounts
+      </a>
 
-        <div className="space-y-1.5">
-          <label htmlFor="type" className="block text-sm font-medium">
-            Type
-          </label>
-          <select
-            id="type"
-            name="type"
-            defaultValue={account.type}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
-          >
-            {ACCOUNT_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {ACCOUNT_TYPE_LABELS[type]}
-              </option>
-            ))}
-          </select>
-        </div>
+      <PageHeader eyebrow="Accounts" title="Edit account" description={account.name} />
 
-        <div className="space-y-1.5">
-          <label className="flex items-start gap-2 text-sm font-medium">
+      <form action={submit}>
+        <FormPanel>
+          <Field htmlFor="name" label="Name">
             <input
-              type="checkbox"
-              name="isLiability"
-              defaultChecked={account.isLiability}
-              className="mt-0.5 size-4 shrink-0 rounded border-border"
+              id="name"
+              name="name"
+              type="text"
+              required
+              maxLength={ACCOUNT_NAME_MAX_LENGTH}
+              defaultValue={account.name}
+              className={inputClass}
             />
-            <span>This is money I owe (a credit card or loan)</span>
-          </label>
-          <p className="text-xs text-ink-muted">
-            A liability is money owed, so its balance lowers your net worth.
-          </p>
-        </div>
+          </Field>
 
-        <div className="space-y-1.5">
-          <label htmlFor="openingBalance" className="block text-sm font-medium">
-            Opening balance
-          </label>
-          <input
-            id="openingBalance"
-            name="openingBalance"
-            type="text"
-            inputMode="decimal"
-            defaultValue={openingBalanceFieldValue(account)}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
-          />
-          <p className="text-xs text-ink-muted">
-            Leave empty for zero. For a credit card or loan, enter the amount you owe — it is
-            recorded as money owed.
-          </p>
-        </div>
+          <Field htmlFor="type" label="Type">
+            <select id="type" name="type" defaultValue={account.type} className={inputClass}>
+              {ACCOUNT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {ACCOUNT_TYPE_LABELS[type]}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-        {message ? (
-          <p
-            role="alert"
-            className="rounded-lg bg-expense/10 px-3 py-2 text-sm font-medium text-expense"
+          <div className="rounded-xl border border-border bg-surface-muted px-4 py-3.5">
+            <label className="flex cursor-pointer items-start gap-3 text-sm font-medium">
+              <input
+                type="checkbox"
+                name="isLiability"
+                defaultChecked={account.isLiability}
+                className="mt-0.5 size-4 shrink-0 rounded border-border accent-brand-700"
+              />
+              <span>
+                This is money I owe
+                <span className="mt-0.5 block text-xs font-normal leading-relaxed text-ink-muted">
+                  A credit card or loan. Its balance lowers your net worth.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <Field
+            htmlFor="openingBalance"
+            label="Opening balance"
+            hint="Leave empty for zero. For a credit card or loan, enter the amount you owe — it is recorded as money owed."
           >
-            {message}
-          </p>
-        ) : null}
+            <div className="relative">
+              <span className="pointer-events-none absolute inset-y-0 left-3.5 grid place-items-center text-sm font-medium text-ink-subtle">
+                ₱
+              </span>
+              <input
+                id="openingBalance"
+                name="openingBalance"
+                type="text"
+                inputMode="decimal"
+                defaultValue={openingBalanceFieldValue(account)}
+                className={`${inputClass} pl-8`}
+              />
+            </div>
+          </Field>
 
-        <button
-          type="submit"
-          className="w-full rounded-lg bg-brand-600 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
-        >
-          Save changes
-        </button>
+          {message ? <ErrorNote message={message} /> : null}
+
+          <button type="submit" className={`${primaryButtonClass} w-full`}>
+            <Icon name="check" className="size-4" />
+            Save changes
+          </button>
+        </FormPanel>
       </form>
 
       {/*
@@ -155,20 +147,32 @@ export default async function EditAccountPage({
         needed before anything is archived. No JavaScript involved.
       */}
       <form action={archiveAccount.bind(null, accountId)}>
-        <details className="rounded-xl border border-border bg-surface p-4 shadow-sm">
-          <summary className="cursor-pointer text-sm font-medium text-expense">
-            Archive this account
+        <details className="group rounded-2xl border border-border bg-surface-raised shadow-sm ring-1 ring-black/[0.015] dark:ring-white/[0.02]">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <span className="grid size-9 place-items-center rounded-xl bg-expense/10 text-expense">
+                <Icon name="archive" className="size-4" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold">Archive this account</p>
+                <p className="text-xs text-ink-muted">
+                  Hidden from pickers; balance and history are kept.
+                </p>
+              </div>
+            </div>
+            <Icon name="chevron-right" className="size-4 text-ink-subtle transition group-open:rotate-90" />
           </summary>
-          <p className="mt-2 text-sm text-ink-muted">
-            Archived accounts are hidden from the pickers, but they keep their balance and their
-            history. You can restore this one later.
-          </p>
-          <button
-            type="submit"
-            className="mt-3 rounded-lg border border-expense px-3 py-1.5 text-sm font-semibold text-expense transition-colors hover:bg-expense/10"
-          >
-            Yes, archive it
-          </button>
+
+          <div className="border-t border-border px-5 py-4">
+            <p className="text-sm leading-relaxed text-ink-muted">
+              Archived accounts are hidden from the pickers, but they keep their balance and their
+              history. You can restore this one later from the accounts screen.
+            </p>
+            <button type="submit" className={`${dangerButtonClass} mt-3`}>
+              <Icon name="archive" className="size-4" />
+              Yes, archive it
+            </button>
+          </div>
         </details>
       </form>
     </div>

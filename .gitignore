@@ -23,3 +23,7 @@ coverage/
 .DS_Store
 next-env.d.ts
 tsconfig.tsbuildinfo
+
+# Reference screenshots — for the agent to look at, never committed.
+ScreenShot/
+screenshot/

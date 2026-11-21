@@ -24,7 +24,7 @@ import { deflateSync } from "node:zlib"
 /** Everything is drawn in a 512 × 512 space and scaled to the target size. */
 const DESIGN_SIZE = 512
 
-const BRAND = [37, 99, 235] // #2563eb
+const BRAND = [4, 120, 87] // #047857
 const WHITE = [255, 255, 255]
 
 /** Rounded rectangles, painted back to front. */

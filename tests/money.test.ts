@@ -21,6 +21,7 @@ import {
   formatPercent,
   formatPeso,
   formatPesoCompact,
+  formatTime,
 } from "@/lib/money/format"
 import {
   centavosToPesoString,
@@ -234,6 +235,7 @@ describe("money module — exported API shape", () => {
       "formatPercent",
       "formatPeso",
       "formatPesoCompact",
+      "formatTime",
     ])
   })
 
@@ -393,6 +395,28 @@ describe("formatMonth", () => {
     expect(formatMonth("2026-13")).toBe("2026-13")
     expect(formatMonth("2026-00")).toBe("2026-00")
     expect(formatMonth("2026-1")).toBe("2026-1")
+  })
+})
+
+describe("formatTime", () => {
+  it("formats an HH:MM time in 12-hour form", () => {
+    expect(formatTime("08:05")).toBe("8:05 AM")
+    expect(formatTime("13:30")).toBe("1:30 PM")
+    expect(formatTime("00:00")).toBe("12:00 AM")
+    expect(formatTime("12:00")).toBe("12:00 PM")
+    expect(formatTime("23:59")).toBe("11:59 PM")
+  })
+
+  it("keeps the two-digit minutes", () => {
+    expect(formatTime("09:07")).toBe("9:07 AM")
+    expect(formatTime("19:05")).toBe("7:05 PM")
+  })
+
+  it("returns unrecognised input unchanged", () => {
+    expect(formatTime("")).toBe("")
+    expect(formatTime("noon")).toBe("noon")
+    expect(formatTime("24:00")).toBe("24:00")
+    expect(formatTime("9:30")).toBe("9:30")
   })
 })
 

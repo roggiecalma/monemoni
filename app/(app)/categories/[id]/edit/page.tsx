@@ -12,6 +12,10 @@ import {
 } from "@/lib/validation/categories"
 import { lookupMessage } from "@/lib/validation/errors"
 
+import { Icon } from "@/components/ui/icons"
+import { ErrorNote, Field, FormPanel, PageHeader } from "@/components/ui/primitives"
+import { dangerButtonClass, inputClass, primaryButtonClass } from "@/lib/ui"
+
 /**
  * Edit category screen. Server Component — the form posts to a Server
  * Action, so the page ships no client JavaScript.
@@ -56,96 +60,82 @@ export default async function EditCategoryPage({
   const message = lookupMessage(CATEGORY_ERROR_MESSAGES, error)
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Edit category</h1>
-        <p className="mt-0.5 text-sm text-ink-muted">
-          {category.icon} {category.name}
-        </p>
-      </div>
-
-      <form
-        action={submit}
-        className="space-y-4 rounded-xl border border-border bg-surface p-5 shadow-sm"
+    <div className="mx-auto max-w-xl space-y-5">
+      <a
+        href="/categories"
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted transition hover:text-ink"
       >
-        <div className="space-y-1.5">
-          <label htmlFor="name" className="block text-sm font-medium">
-            Name
-          </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            required
-            maxLength={CATEGORY_NAME_MAX_LENGTH}
-            defaultValue={category.name}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
-          />
-        </div>
+        <Icon name="arrow-left" className="size-3.5" />
+        Back to categories
+      </a>
 
-        <div className="space-y-1.5">
-          <label htmlFor="kind" className="block text-sm font-medium">
-            Kind
-          </label>
-          <select
-            id="kind"
-            name="kind"
-            defaultValue={category.kind}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
-          >
-            {CATEGORY_KINDS.map((kind) => (
-              <option key={kind} value={kind}>
-                {CATEGORY_KIND_LABELS[kind]}
-              </option>
-            ))}
-          </select>
-        </div>
+      <PageHeader
+        eyebrow="Categories"
+        title="Edit category"
+        description={
+          <span className="inline-flex items-center gap-2">
+            <span aria-hidden="true">{category.icon}</span>
+            {category.name}
+          </span>
+        }
+      />
 
-        <div className="space-y-1.5">
-          <label htmlFor="icon" className="block text-sm font-medium">
-            Icon
-          </label>
-          <input
-            id="icon"
-            name="icon"
-            type="text"
-            required
-            maxLength={CATEGORY_ICON_MAX_LENGTH}
-            defaultValue={category.icon}
-            placeholder="🍔"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
-          />
-          <p className="text-xs text-ink-muted">A single emoji, e.g. 🍔</p>
-        </div>
+      <form action={submit}>
+        <FormPanel>
+          <Field htmlFor="name" label="Name">
+            <input
+              id="name"
+              name="name"
+              type="text"
+              required
+              maxLength={CATEGORY_NAME_MAX_LENGTH}
+              defaultValue={category.name}
+              className={inputClass}
+            />
+          </Field>
 
-        <div className="space-y-1.5">
-          <label htmlFor="color" className="block text-sm font-medium">
-            Colour
-          </label>
-          <input
-            id="color"
-            name="color"
-            type="color"
-            defaultValue={category.color}
-            className="h-10 w-20 cursor-pointer rounded border border-border bg-surface p-1"
-          />
-        </div>
+          <Field htmlFor="kind" label="Kind">
+            <select id="kind" name="kind" defaultValue={category.kind} className={inputClass}>
+              {CATEGORY_KINDS.map((kind) => (
+                <option key={kind} value={kind}>
+                  {CATEGORY_KIND_LABELS[kind]}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-        {message ? (
-          <p
-            role="alert"
-            className="rounded-lg bg-expense/10 px-3 py-2 text-sm font-medium text-expense"
-          >
-            {message}
-          </p>
-        ) : null}
+          <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+            <Field htmlFor="icon" label="Icon" hint="A single emoji, e.g. 🍔">
+              <input
+                id="icon"
+                name="icon"
+                type="text"
+                required
+                maxLength={CATEGORY_ICON_MAX_LENGTH}
+                defaultValue={category.icon}
+                placeholder="🍔"
+                className={inputClass}
+              />
+            </Field>
 
-        <button
-          type="submit"
-          className="w-full rounded-lg bg-brand-600 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
-        >
-          Save changes
-        </button>
+            <Field htmlFor="color" label="Colour" hint="Used in lists and charts">
+              <input
+                id="color"
+                name="color"
+                type="color"
+                defaultValue={category.color}
+                className="h-[46px] w-full cursor-pointer rounded-xl border border-border bg-surface p-1.5 sm:w-24"
+              />
+            </Field>
+          </div>
+
+          {message ? <ErrorNote message={message} /> : null}
+
+          <button type="submit" className={`${primaryButtonClass} w-full`}>
+            <Icon name="check" className="size-4" />
+            Save changes
+          </button>
+        </FormPanel>
       </form>
 
       {/*
@@ -154,20 +144,32 @@ export default async function EditCategoryPage({
         needed before anything is archived. No JavaScript involved.
       */}
       <form action={archiveCategory.bind(null, categoryId)}>
-        <details className="rounded-xl border border-border bg-surface p-4 shadow-sm">
-          <summary className="cursor-pointer text-sm font-medium text-expense">
-            Archive this category
+        <details className="group rounded-2xl border border-border bg-surface-raised shadow-sm ring-1 ring-black/[0.015] dark:ring-white/[0.02]">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <span className="grid size-9 place-items-center rounded-xl bg-expense/10 text-expense">
+                <Icon name="archive" className="size-4" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold">Archive this category</p>
+                <p className="text-xs text-ink-muted">
+                  Hidden from pickers; past transactions keep its name and colour.
+                </p>
+              </div>
+            </div>
+            <Icon name="chevron-right" className="size-4 text-ink-subtle transition group-open:rotate-90" />
           </summary>
-          <p className="mt-2 text-sm text-ink-muted">
-            Archived categories are hidden from the pickers, but past transactions still show
-            their name and colour. You can restore this one later.
-          </p>
-          <button
-            type="submit"
-            className="mt-3 rounded-lg border border-expense px-3 py-1.5 text-sm font-semibold text-expense transition-colors hover:bg-expense/10"
-          >
-            Yes, archive it
-          </button>
+
+          <div className="border-t border-border px-5 py-4">
+            <p className="text-sm leading-relaxed text-ink-muted">
+              Archived categories are hidden from the pickers, but past transactions still show
+              their name and colour. You can restore this one later from the categories screen.
+            </p>
+            <button type="submit" className={`${dangerButtonClass} mt-3`}>
+              <Icon name="archive" className="size-4" />
+              Yes, archive it
+            </button>
+          </div>
         </details>
       </form>
     </div>

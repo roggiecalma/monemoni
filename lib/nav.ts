@@ -1,3 +1,5 @@
+import type { IconName } from "@/components/ui/icons"
+
 /**
  * MoneMoni — main navigation.
  *
@@ -8,10 +10,12 @@
 export interface NavItem {
   href: string
   label: string
+  icon: IconName
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/accounts", label: "Accounts" },
-  { href: "/categories", label: "Categories" },
+  { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { href: "/transactions", label: "Transactions", icon: "receipt" },
+  { href: "/accounts", label: "Accounts", icon: "wallet" },
+  { href: "/categories", label: "Categories", icon: "tag" },
 ]

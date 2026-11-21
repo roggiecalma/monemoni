@@ -5,6 +5,8 @@
  * This module is pure and safe to import from client components.
  */
 
+import { daysInMonth } from "../dates"
+
 const pesoFormatter = new Intl.NumberFormat("en-PH", {
   style: "currency",
   currency: "PHP",
@@ -43,29 +45,6 @@ const MONTH_NAMES_SHORT = [
 /** Drops a trailing `.0` so `1.0` becomes `1`. */
 function trimTrailingZero(value: string): string {
   return value.endsWith(".0") ? value.slice(0, -2) : value
-}
-
-/** Days per month for a non-leap year, indexed by month number (1–12). */
-const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const
-
-/**
- * A year is a leap year when it is divisible by 4, except for century years,
- * which must also be divisible by 400 (`2024` yes, `1900` no, `2000` yes).
- */
-function isLeapYear(year: number): boolean {
-  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
-}
-
-/**
- * Number of days in a month (1–12) of a given year.
- *
- * This is a pure integer calculation on purpose: parsing the date string
- * would silently roll impossible dates over into the next month
- * (`new Date("2026-02-31")` is March 3rd).
- */
-function daysInMonth(year: number, month: number): number {
-  if (month === 2) return isLeapYear(year) ? 29 : 28
-  return DAYS_IN_MONTH[month - 1] ?? 0
 }
 
 /**
@@ -122,6 +101,25 @@ export function formatMonth(month: string): string {
   if (monthNumber < 1 || monthNumber > 12) return month
 
   return `${MONTH_NAMES[monthNumber - 1]} ${year}`
+}
+
+/**
+ * Formats an `HH:MM` time of day in the local 12-hour form:
+ * `"08:05"` → `"8:05 AM"`, `"13:30"` → `"1:30 PM"`, `"00:00"` → `"12:00 AM"`.
+ * Unrecognised input is returned unchanged.
+ */
+export function formatTime(time: string): string {
+  const match = /^(\d{2}):(\d{2})$/.exec(time.trim())
+  if (!match) return time
+
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return time
+
+  const suffix = hours < 12 ? "AM" : "PM"
+  const twelveHour = hours % 12 === 0 ? 12 : hours % 12
+
+  return `${twelveHour}:${String(minutes).padStart(2, "0")} ${suffix}`
 }
 
 /**

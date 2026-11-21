@@ -6,6 +6,7 @@ import {
   getCategoryTotals,
   getMonthlyTotals,
   getSummary,
+  getTransactionById,
   getTransactions,
 } from "@/lib/db/queries"
 import { goalContributions } from "@/lib/db/schema"
@@ -143,6 +144,21 @@ async function seedStandardFixture(): Promise<void> {
 beforeEach(async () => {
   await resetDatabase()
   await seedStandardFixture()
+})
+
+describe("getTransactionById", () => {
+  it("returns the matching transaction", async () => {
+    const transaction = await getTransactionById("t-expense-1")
+
+    expect(transaction).not.toBeNull()
+    expect(transaction?.id).toBe("t-expense-1")
+    expect(transaction?.amount).toBe(12500)
+    expect(transaction?.categoryId).toBe(FOOD)
+  })
+
+  it("returns null for an unknown id", async () => {
+    expect(await getTransactionById("no-such-id")).toBeNull()
+  })
 })
 
 describe("getSummary", () => {

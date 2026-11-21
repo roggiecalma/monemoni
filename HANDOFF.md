@@ -14,13 +14,13 @@ State as of the end of **Wave B2a** (A‴ and Q′ included). Read `ARCHITECTURE
 | Q | Query-layer fixes (clamping, `isLiability`, category-kind coupling, date helpers) | **done** — `bf66cb7` |
 | Q′ | Follow-up: restore type-driven category totals; `offset` implies a limit | **done** — `bf66cb7` |
 | B2a | Accounts + categories CRUD, nav, error boundaries | **done** — `bf66cb7` |
-| B2b | Transactions CRUD (list, filters, income/expense/transfer forms) | not started |
+| B2b | Transactions CRUD (list, month/type filters, income/expense/transfer forms, delete) | **done** |
 | C | Recurring bills, budgets, savings goals, reports, SVG charts, CSV export | not started |
 | D | Turso + Vercel deploy, README | not started |
 
 `origin/main` is in sync with `main` at `bf66cb7`.
 
-**Next:** Wave **B2b** — transactions CRUD (list, filters, income/expense/transfer forms).
+**Next:** Wave **C** — recurring bills, budgets, savings goals, reports, SVG charts, CSV export.
 
 ## Workflow (from `CLAUDE.md`)
 

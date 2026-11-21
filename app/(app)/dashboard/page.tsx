@@ -8,13 +8,23 @@ import {
   getTransactions,
 } from "@/lib/db/queries"
 import type { AccountType, TransactionType } from "@/lib/db/schema"
-import { formatDate, formatMonth, formatPeso } from "@/lib/money/format"
+import { formatDate, formatMonth, formatPeso, formatTime } from "@/lib/money/format"
+
+import { Icon, type IconName } from "@/components/ui/icons"
+import { PageHeader } from "@/components/ui/primitives"
 
 const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   cash: "Cash",
   bank: "Bank",
   ewallet: "E-Wallet",
   card: "Credit card",
+}
+
+const ACCOUNT_TYPE_ICONS: Record<AccountType, IconName> = {
+  cash: "cash",
+  bank: "bank",
+  ewallet: "phone",
+  card: "card",
 }
 
 /** Fallback label for a transaction that has no category. */
@@ -24,28 +34,14 @@ const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
   transfer: "Transfer",
 }
 
+const TRANSACTION_TYPE_ICONS: Record<TransactionType, IconName> = {
+  income: "arrow-up-right",
+  expense: "arrow-down-left",
+  transfer: "transfer",
+}
+
 /** How many transactions the dashboard lists. */
 const RECENT_LIMIT = 8
-
-/** Small card wrapper — keeps the page markup flat and readable. */
-function Card({
-  title,
-  children,
-}: {
-  title?: string
-  children: React.ReactNode
-}) {
-  return (
-    <section className="rounded-xl border border-border bg-surface p-4 shadow-sm">
-      {title ? (
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-muted">
-          {title}
-        </h2>
-      ) : null}
-      {children}
-    </section>
-  )
-}
 
 /**
  * Dashboard — a server-rendered overview of the money in this install.
@@ -77,77 +73,244 @@ export default async function DashboardPage() {
   // liability account (credit card) is negative while money is owed, so the
   // plain sum of every balance is already the net worth.
   const netWorth = balances.reduce((total, balance) => total + balance.balance, 0)
+  const assets = balances.reduce((total, balance) => total + Math.max(balance.balance, 0), 0)
+  const owed = balances.reduce((total, balance) => total + Math.min(balance.balance, 0), 0)
+
+  // How much of this month's income has been spent — a purely visual cue,
+  // clamped so an overspend cannot overflow the bar.
+  const spendRatio =
+    summary.income > 0 ? Math.min(100, Math.round((summary.expense / summary.income) * 100)) : 0
 
   const hasTransactions = transactions.length > 0
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
-            Net worth
-          </p>
-          <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">
-            {formatPeso(netWorth)}
-          </p>
-          <p className="mt-1 text-xs text-ink-muted">Assets minus what you owe</p>
-        </Card>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow={formatMonth(month)}
+        title="Your money, at a glance."
+        description="Balances, this month’s flow and the latest activity — all live from your ledger."
+      />
 
-        <Card>
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
-            This month · {formatMonth(month)}
-          </p>
-          <dl className="mt-3 space-y-1.5 text-sm">
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-ink-muted">Income</dt>
-              <dd className="font-medium text-income tabular-nums">
+      <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+        {/* Net worth hero */}
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-800 via-brand-800 to-brand-900 p-6 text-white shadow-xl shadow-brand-900/20 sm:p-8">
+          <div
+            aria-hidden="true"
+            className="absolute -right-20 -top-24 size-64 rounded-full border border-white/10"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute -right-8 top-6 size-40 rounded-full border border-white/10"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute -bottom-24 -left-10 size-48 rounded-full bg-brand-500/20 blur-2xl"
+          />
+
+          <div className="relative">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200/80">
+                Net worth
+              </p>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-medium text-brand-50 backdrop-blur">
+                <span className="size-1.5 rounded-full bg-brand-300" />
+                All accounts
+              </span>
+            </div>
+
+            <p className="mt-4 font-display text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">
+              {formatPeso(netWorth)}
+            </p>
+            <p className="mt-2 text-sm text-brand-100/75">Assets minus what you owe</p>
+
+            <div className="mt-7 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 backdrop-blur-sm">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-200/70">
+                  Assets
+                </p>
+                <p className="mt-1 text-base font-semibold tabular-nums">{formatPeso(assets)}</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 backdrop-blur-sm">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-200/70">
+                  Owed
+                </p>
+                <p className="mt-1 text-base font-semibold tabular-nums">
+                  {formatPeso(Math.abs(owed))}
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* This month */}
+        <section className="rounded-2xl border border-border bg-surface-raised p-5 shadow-sm ring-1 ring-black/[0.015] dark:ring-white/[0.02] sm:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-subtle">
+                This month
+              </p>
+              <p className="mt-0.5 text-sm font-medium text-ink">{formatMonth(month)}</p>
+            </div>
+            <span className="grid size-10 place-items-center rounded-xl bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
+              <Icon name="trend-up" className="size-5" />
+            </span>
+          </div>
+
+          <dl className="mt-5 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="flex items-center gap-2.5 text-sm text-ink-muted">
+                <span className="grid size-7 place-items-center rounded-lg bg-income/10 text-income">
+                  <Icon name="arrow-up-right" className="size-3.5" />
+                </span>
+                Income
+              </dt>
+              <dd className="text-sm font-semibold text-income tabular-nums">
                 {formatPeso(summary.income)}
               </dd>
             </div>
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-ink-muted">Expense</dt>
-              <dd className="font-medium text-expense tabular-nums">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="flex items-center gap-2.5 text-sm text-ink-muted">
+                <span className="grid size-7 place-items-center rounded-lg bg-expense/10 text-expense">
+                  <Icon name="arrow-down-left" className="size-3.5" />
+                </span>
+                Expense
+              </dt>
+              <dd className="text-sm font-semibold text-expense tabular-nums">
                 {formatPeso(summary.expense)}
               </dd>
             </div>
-            <div className="flex items-baseline justify-between gap-3 border-t border-border pt-1.5">
-              <dt className="font-medium">Net</dt>
-              <dd className="font-semibold tabular-nums">{formatPeso(summary.net)}</dd>
-            </div>
           </dl>
-        </Card>
+
+          <div className="mt-4">
+            <div className="h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-expense/70 to-expense"
+                style={{ width: `${spendRatio}%` }}
+              />
+            </div>
+            <p className="mt-2 text-[11px] text-ink-subtle">
+              {summary.income > 0
+                ? `${spendRatio}% of this month’s income spent`
+                : "No income recorded this month yet"}
+            </p>
+          </div>
+
+          <div className="mt-4 flex items-baseline justify-between gap-3 border-t border-border pt-3">
+            <span className="text-sm font-medium">Net</span>
+            <span
+              className={`text-base font-semibold tabular-nums ${
+                summary.net >= 0 ? "text-ink" : "text-expense"
+              }`}
+            >
+              {formatPeso(summary.net)}
+            </span>
+          </div>
+        </section>
       </div>
 
-      <Card title="Account balances">
-        <ul className="divide-y divide-border">
-          {balances.map((balance) => {
-            // A liability holds a negative balance while money is owed. It is
-            // shown as a magnitude with an "owed" label, never as a bare
-            // negative amount.
-            const owed = balance.isLiability && balance.balance < 0
+      {/* Accounts */}
+      <section>
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <div>
+            <h2 className="font-display text-lg font-semibold tracking-tight">Accounts</h2>
+            <p className="text-xs text-ink-muted">
+              {balances.length} {balances.length === 1 ? "account" : "accounts"} in this workspace
+            </p>
+          </div>
+          <a
+            href="/accounts"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 transition hover:text-brand-800 dark:text-brand-400 dark:hover:text-brand-300"
+          >
+            Manage
+            <Icon name="chevron-right" className="size-3.5" />
+          </a>
+        </div>
 
-            return (
-              <li key={balance.id} className="flex items-center justify-between gap-3 py-2.5">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{balance.name}</p>
-                  <p className="text-xs text-ink-muted">
-                    {balance.isLiability ? "Liability" : ACCOUNT_TYPE_LABELS[balance.type]}
+        {balances.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border-strong bg-surface-raised px-6 py-10 text-center">
+            <span className="mx-auto grid size-11 place-items-center rounded-2xl bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
+              <Icon name="wallet" className="size-5" />
+            </span>
+            <h3 className="mt-3 text-sm font-semibold">No accounts yet</h3>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-ink-muted">
+              Add the cash, bank accounts and e-wallets you use to start tracking balances.
+            </p>
+            <a
+              href="/accounts/new"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-brand-700 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-brand-800"
+            >
+              <Icon name="plus" className="size-4" />
+              Add an account
+            </a>
+          </div>
+        ) : (
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {balances.map((balance) => {
+              // A liability holds a negative balance while money is owed. It is
+              // shown as a magnitude with an "owed" label, never as a bare
+              // negative amount.
+              const owedAmount = balance.isLiability && balance.balance < 0
+
+              return (
+                <li
+                  key={balance.id}
+                  className="group rounded-2xl border border-border bg-surface-raised p-4 shadow-sm ring-1 ring-black/[0.015] transition hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md dark:ring-white/[0.02]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <span
+                      className={`grid size-10 place-items-center rounded-xl ${
+                        balance.isLiability
+                          ? "bg-expense/10 text-expense"
+                          : "bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300"
+                      }`}
+                    >
+                      <Icon name={ACCOUNT_TYPE_ICONS[balance.type]} className="size-5" />
+                    </span>
+                    {balance.isLiability ? (
+                      <span className="rounded-full bg-expense/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-expense">
+                        Owed
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-muted">
+                        {ACCOUNT_TYPE_LABELS[balance.type]}
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="mt-4 truncate text-sm font-medium text-ink">{balance.name}</p>
+                  <p className="mt-0.5 truncate text-xs text-ink-muted">
+                    {ACCOUNT_TYPE_LABELS[balance.type]}
                   </p>
-                </div>
-                <p className="shrink-0 text-sm font-semibold tabular-nums">
-                  {formatPeso(owed ? Math.abs(balance.balance) : balance.balance)}
-                  {owed ? (
-                    <span className="ml-1 font-normal text-ink-muted">owed</span>
-                  ) : null}
-                </p>
-              </li>
-            )
-          })}
-        </ul>
-      </Card>
+                  <p
+                    className={`mt-3 font-display text-xl font-semibold tracking-tight tabular-nums ${
+                      owedAmount ? "text-expense" : "text-ink"
+                    }`}
+                  >
+                    {formatPeso(owedAmount ? Math.abs(balance.balance) : balance.balance)}
+                    {owedAmount ? (
+                      <span className="ml-1 font-sans text-xs font-normal text-ink-muted">owed</span>
+                    ) : null}
+                  </p>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </section>
 
-      {hasTransactions ? (
-        <Card title="Recent transactions">
+      {/* Recent activity */}
+      <section className="overflow-hidden rounded-2xl border border-border bg-surface-raised shadow-sm ring-1 ring-black/[0.015] dark:ring-white/[0.02]">
+        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+          <div>
+            <h2 className="font-display text-lg font-semibold tracking-tight">Recent activity</h2>
+            <p className="text-xs text-ink-muted">The last {RECENT_LIMIT} entries in your ledger</p>
+          </div>
+          <span className="grid size-9 place-items-center rounded-xl bg-surface-sunken text-ink-muted">
+            <Icon name="sparkles" className="size-4" />
+          </span>
+        </div>
+
+        {hasTransactions ? (
           <ul className="divide-y divide-border">
             {transactions.map((transaction) => {
               const accountName = accountNames.get(transaction.accountId)
@@ -175,14 +338,37 @@ export default async function DashboardPage() {
               return (
                 <li
                   key={transaction.id}
-                  className="flex items-start justify-between gap-3 py-2.5"
+                  className="flex items-center justify-between gap-3 px-5 py-3.5 transition hover:bg-surface-muted/60"
                 >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{title}</p>
-                    <p className="truncate text-xs text-ink-muted">
-                      {formatDate(transaction.date)}
-                      {detail ? ` · ${detail}` : ""}
-                    </p>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      className="grid size-9 shrink-0 place-items-center rounded-xl border text-sm"
+                      style={
+                        category
+                          ? {
+                              backgroundColor: `${category.color}14`,
+                              borderColor: `${category.color}33`,
+                            }
+                          : undefined
+                      }
+                    >
+                      {category ? (
+                        <span aria-hidden="true">{category.icon}</span>
+                      ) : (
+                        <Icon
+                          name={TRANSACTION_TYPE_ICONS[transaction.type]}
+                          className="size-4 text-ink-muted"
+                        />
+                      )}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{title}</p>
+                      <p className="truncate text-xs text-ink-muted">
+                        {formatDate(transaction.date)}
+                        {transaction.time ? ` · ${formatTime(transaction.time)}` : ""}
+                        {detail ? ` · ${detail}` : ""}
+                      </p>
+                    </div>
                   </div>
                   <p
                     className={`shrink-0 text-sm font-semibold tabular-nums ${amount.className}`}
@@ -193,19 +379,19 @@ export default async function DashboardPage() {
               )
             })}
           </ul>
-        </Card>
-      ) : (
-        <section className="rounded-xl border border-border bg-surface p-6 text-center shadow-sm">
-          <p className="text-3xl" aria-hidden="true">
-            💸
-          </p>
-          <h2 className="mt-2 text-base font-semibold">No transactions yet</h2>
-          <p className="mx-auto mt-1 max-w-sm text-sm text-ink-muted">
-            Record your first income or expense to see it here. Your account balances and
-            this month&apos;s totals update automatically.
-          </p>
-        </section>
-      )}
+        ) : (
+          <div className="px-6 py-12 text-center">
+            <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-surface-sunken text-ink-muted">
+              <Icon name="transfer" className="size-5" />
+            </span>
+            <h3 className="mt-3 text-sm font-semibold">No transactions yet</h3>
+            <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-ink-muted">
+              Income, spending and transfers will appear here as soon as they are recorded. Your
+              balances and monthly totals update with them.
+            </p>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

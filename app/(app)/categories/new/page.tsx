@@ -11,6 +11,10 @@ import {
 } from "@/lib/validation/categories"
 import { lookupMessage } from "@/lib/validation/errors"
 
+import { Icon } from "@/components/ui/icons"
+import { ErrorNote, Field, FormPanel, PageHeader } from "@/components/ui/primitives"
+import { inputClass, primaryButtonClass } from "@/lib/ui"
+
 /**
  * New category screen. Server Component — the form posts to a Server
  * Action, so the page ships no client JavaScript.
@@ -42,96 +46,77 @@ export default async function NewCategoryPage({
   const message = lookupMessage(CATEGORY_ERROR_MESSAGES, error)
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">New category</h1>
-        <p className="mt-0.5 text-sm text-ink-muted">
-          A category groups your income or your spending.
-        </p>
-      </div>
-
-      <form
-        action={submit}
-        className="space-y-4 rounded-xl border border-border bg-surface p-5 shadow-sm"
+    <div className="mx-auto max-w-xl space-y-5">
+      <a
+        href="/categories"
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted transition hover:text-ink"
       >
-        <div className="space-y-1.5">
-          <label htmlFor="name" className="block text-sm font-medium">
-            Name
-          </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            required
-            maxLength={CATEGORY_NAME_MAX_LENGTH}
-            autoFocus
-            placeholder="Food & Dining"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
-          />
-        </div>
+        <Icon name="arrow-left" className="size-3.5" />
+        Back to categories
+      </a>
 
-        <div className="space-y-1.5">
-          <label htmlFor="kind" className="block text-sm font-medium">
-            Kind
-          </label>
-          <select
-            id="kind"
-            name="kind"
-            defaultValue="expense"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
-          >
-            {CATEGORY_KINDS.map((kind) => (
-              <option key={kind} value={kind}>
-                {CATEGORY_KIND_LABELS[kind]}
-              </option>
-            ))}
-          </select>
-        </div>
+      <PageHeader
+        eyebrow="Categories"
+        title="New category"
+        description="A category groups your income or your spending."
+      />
 
-        <div className="space-y-1.5">
-          <label htmlFor="icon" className="block text-sm font-medium">
-            Icon
-          </label>
-          <input
-            id="icon"
-            name="icon"
-            type="text"
-            required
-            maxLength={CATEGORY_ICON_MAX_LENGTH}
-            placeholder="🍔"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
-          />
-          <p className="text-xs text-ink-muted">A single emoji, e.g. 🍔</p>
-        </div>
+      <form action={submit}>
+        <FormPanel>
+          <Field htmlFor="name" label="Name">
+            <input
+              id="name"
+              name="name"
+              type="text"
+              required
+              maxLength={CATEGORY_NAME_MAX_LENGTH}
+              autoFocus
+              placeholder="Food & Dining"
+              className={inputClass}
+            />
+          </Field>
 
-        <div className="space-y-1.5">
-          <label htmlFor="color" className="block text-sm font-medium">
-            Colour
-          </label>
-          <input
-            id="color"
-            name="color"
-            type="color"
-            defaultValue="#f97316"
-            className="h-10 w-20 cursor-pointer rounded border border-border bg-surface p-1"
-          />
-        </div>
+          <Field htmlFor="kind" label="Kind">
+            <select id="kind" name="kind" defaultValue="expense" className={inputClass}>
+              {CATEGORY_KINDS.map((kind) => (
+                <option key={kind} value={kind}>
+                  {CATEGORY_KIND_LABELS[kind]}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-        {message ? (
-          <p
-            role="alert"
-            className="rounded-lg bg-expense/10 px-3 py-2 text-sm font-medium text-expense"
-          >
-            {message}
-          </p>
-        ) : null}
+          <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+            <Field htmlFor="icon" label="Icon" hint="A single emoji, e.g. 🍔">
+              <input
+                id="icon"
+                name="icon"
+                type="text"
+                required
+                maxLength={CATEGORY_ICON_MAX_LENGTH}
+                placeholder="🍔"
+                className={inputClass}
+              />
+            </Field>
 
-        <button
-          type="submit"
-          className="w-full rounded-lg bg-brand-600 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
-        >
-          Create category
-        </button>
+            <Field htmlFor="color" label="Colour" hint="Used in lists and charts">
+              <input
+                id="color"
+                name="color"
+                type="color"
+                defaultValue="#f97316"
+                className="h-[46px] w-full cursor-pointer rounded-xl border border-border bg-surface p-1.5 sm:w-24"
+              />
+            </Field>
+          </div>
+
+          {message ? <ErrorNote message={message} /> : null}
+
+          <button type="submit" className={`${primaryButtonClass} w-full`}>
+            <Icon name="plus" className="size-4" />
+            Create category
+          </button>
+        </FormPanel>
       </form>
     </div>
   )
