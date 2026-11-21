@@ -123,47 +123,52 @@ export default async function AccountsPage() {
                 key={account.id}
                 className="group relative overflow-hidden rounded-2xl border border-border bg-surface-raised p-4 shadow-sm ring-1 ring-black/[0.015] transition hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md dark:ring-white/[0.02]"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <span
-                    className={`grid size-10 place-items-center rounded-xl ${
-                      account.isLiability
-                        ? "bg-expense/10 text-expense"
-                        : "bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300"
-                    }`}
-                  >
-                    <Icon name={ACCOUNT_TYPE_ICONS[account.type]} className="size-4" />
-                  </span>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      className={`grid size-9 shrink-0 place-items-center rounded-xl ${
+                        account.isLiability
+                          ? "bg-expense/10 text-expense"
+                          : "bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300"
+                      }`}
+                    >
+                      <Icon name={ACCOUNT_TYPE_ICONS[account.type]} className="size-4" />
+                    </span>
 
-                  <a
-                    href={`/accounts/${account.id}/edit`}
-                    aria-label={`Edit ${account.name}`}
-                    className="grid size-8 place-items-center rounded-lg border border-transparent text-ink-subtle transition hover:border-border hover:bg-surface-muted hover:text-ink"
-                  >
-                    <Icon name="pencil" className="size-3.5" />
-                  </a>
-                </div>
-
-                <div className="mt-3">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-base font-semibold text-ink">{account.name}</p>
-                    {account.isLiability ? (
-                      <span className="shrink-0 rounded-full bg-expense/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-expense">
-                        Liability
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-semibold text-ink">{account.name}</p>
+                      <span
+                        className={`mt-1 block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                          account.isLiability
+                            ? "bg-expense/10 text-expense"
+                            : "bg-surface-sunken text-ink-muted"
+                        }`}
+                      >
+                        {account.isLiability ? "OWED" : ACCOUNT_TYPE_LABELS[account.type]}
                       </span>
-                    ) : null}
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-2">
+                    <a
+                      href={`/accounts/${account.id}/edit`}
+                      aria-label={`Edit ${account.name}`}
+                      className="grid size-8 place-items-center rounded-lg border border-transparent text-ink-subtle transition hover:border-border hover:bg-surface-muted hover:text-ink"
+                    >
+                      <Icon name="pencil" className="size-3.5" />
+                    </a>
+                    <p
+                      className={`shrink-0 font-display text-2xl font-semibold tracking-tight tabular-nums ${
+                        owedAmount ? "text-expense" : "text-ink"
+                      }`}
+                    >
+                      {formatPeso(owedAmount ? Math.abs(balance) : balance)}
+                      {owedAmount ? (
+                        <span className="ml-1.5 font-sans text-xs font-normal text-ink-muted">owed</span>
+                      ) : null}
+                    </p>
                   </div>
                 </div>
-
-                <p
-                  className={`mt-2 font-display text-xl font-semibold tracking-tight tabular-nums ${
-                    owedAmount ? "text-expense" : "text-ink"
-                  }`}
-                >
-                  {formatPeso(owedAmount ? Math.abs(balance) : balance)}
-                  {owedAmount ? (
-                    <span className="ml-1.5 font-sans text-xs font-normal text-ink-muted">owed</span>
-                  ) : null}
-                </p>
               </li>
             )
           })}

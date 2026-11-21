@@ -256,38 +256,43 @@ export default async function DashboardPage() {
                   key={balance.id}
                   className="group rounded-2xl border border-border bg-surface-raised p-3 shadow-sm ring-1 ring-black/[0.015] transition hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md dark:ring-white/[0.02]"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <span
-                      className={`grid size-9 place-items-center rounded-lg ${
-                        balance.isLiability
-                          ? "bg-expense/10 text-expense"
-                          : "bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300"
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span
+                        className={`grid size-9 shrink-0 place-items-center rounded-xl ${
+                          balance.isLiability
+                            ? "bg-expense/10 text-expense"
+                            : "bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300"
+                        }`}
+                      >
+                        <Icon name={ACCOUNT_TYPE_ICONS[balance.type]} className="size-4" />
+                      </span>
+
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-semibold text-ink">{balance.name}</p>
+                        <span
+                          className={`mt-1 block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                            balance.isLiability
+                              ? "bg-expense/10 text-expense"
+                              : "bg-surface-sunken text-ink-muted"
+                          }`}
+                        >
+                          {balance.isLiability ? "OWED" : ACCOUNT_TYPE_LABELS[balance.type]}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p
+                      className={`shrink-0 font-display text-2xl font-semibold tracking-tight tabular-nums ${
+                        owedAmount ? "text-expense" : "text-ink"
                       }`}
                     >
-                      <Icon name={ACCOUNT_TYPE_ICONS[balance.type]} className="size-4" />
-                    </span>
-                    {balance.isLiability ? (
-                      <span className="rounded-full bg-expense/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-expense">
-                        Owed
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-surface-sunken px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-ink-muted">
-                        {ACCOUNT_TYPE_LABELS[balance.type]}
-                      </span>
-                    )}
+                      {formatPeso(owedAmount ? Math.abs(balance.balance) : balance.balance)}
+                      {owedAmount ? (
+                        <span className="ml-1.5 font-sans text-xs font-normal text-ink-muted">owed</span>
+                      ) : null}
+                    </p>
                   </div>
-
-                  <p className="mt-2 truncate text-sm font-medium text-ink">{balance.name}</p>
-                  <p
-                    className={`mt-1.5 font-display text-lg font-semibold tracking-tight tabular-nums ${
-                      owedAmount ? "text-expense" : "text-ink"
-                    }`}
-                  >
-                    {formatPeso(owedAmount ? Math.abs(balance.balance) : balance.balance)}
-                    {owedAmount ? (
-                      <span className="ml-1 font-sans text-[10px] font-normal text-ink-muted">owed</span>
-                    ) : null}
-                  </p>
                 </li>
               )
             })}
