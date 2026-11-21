@@ -60,7 +60,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Icon name="shield" className="size-5 text-brand-300" />
             <p className="mt-3 text-sm font-semibold">Private by design</p>
             <p className="mt-1 text-xs leading-relaxed text-brand-100/75">
-              One passcode. One person. No bank connections.
+              One passcode. One person.
+              <br />
+              No bank connections.
             </p>
           </div>
 
