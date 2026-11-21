@@ -52,14 +52,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="mt-auto space-y-3">
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-800 to-brand-900 p-4 text-white">
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-800 to-brand-900 p-3 text-white">
             <div
               aria-hidden="true"
-              className="absolute -right-6 -top-8 size-24 rounded-full border border-white/10"
+              className="absolute -right-4 -top-4 size-16 rounded-full border border-white/10"
             />
-            <Icon name="shield" className="size-5 text-brand-300" />
-            <p className="mt-3 text-sm font-semibold">Private by design</p>
-            <p className="mt-1 text-xs leading-relaxed text-brand-100/75">
+            <Icon name="shield" className="size-4 text-brand-300" />
+            <p className="mt-2 text-xs font-semibold">Private by design</p>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-brand-100/75">
               One passcode. One person.
               <br />
               No bank connections.
