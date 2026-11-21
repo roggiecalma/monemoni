@@ -1,24 +1,26 @@
 # Handoff — MoneMoni
 
-State as of the end of **Wave B1 + A″**. Read `ARCHITECTURE.md` first — it is the source of truth for the data model, money rules, auth model, and conventions.
+State as of the end of **Wave B2a** (A‴ and Q′ included). Read `ARCHITECTURE.md` first — it is the source of truth for the data model, money rules, auth model, and conventions.
 
 ## Status
 
 | Wave | Scope | State |
 | --- | --- | --- |
 | A | Data layer, money utils, auth, migrations | **done** — `5da5f28` |
-| A′ | Tester suites + DB isolation | **done** — 78 tests |
+| A′ | Tester suites + DB isolation | **done** — suite now 139 tests |
 | A″ | Security hardening round 1 | **done** — `22dce8d` |
 | B1 | App shell, PWA, setup/login, dashboard | **done** — `22dce8d` |
-| A‴ | Security hardening round 2 (service worker, auth throttling, guards) | **in flight** |
-| Q | Query-layer fixes (clamping, `isLiability`, category-kind coupling, date helpers) | **landed** |
-| Q′ | Follow-up: restore type-driven category totals; `offset` implies a limit | **landed** |
-| B2a | Accounts + categories CRUD, nav, error boundaries | **in flight** |
+| A‴ | Security hardening round 2 (service worker, auth throttling, guards) | **done** — `bf66cb7` |
+| Q | Query-layer fixes (clamping, `isLiability`, category-kind coupling, date helpers) | **done** — `bf66cb7` |
+| Q′ | Follow-up: restore type-driven category totals; `offset` implies a limit | **done** — `bf66cb7` |
+| B2a | Accounts + categories CRUD, nav, error boundaries | **done** — `bf66cb7` |
 | B2b | Transactions CRUD (list, filters, income/expense/transfer forms) | not started |
 | C | Recurring bills, budgets, savings goals, reports, SVG charts, CSV export | not started |
 | D | Turso + Vercel deploy, README | not started |
 
-`origin/main` is in sync with `main` at `22dce8d`.
+`origin/main` is in sync with `main` at `bf66cb7`.
+
+**Next:** Wave **B2b** — transactions CRUD (list, filters, income/expense/transfer forms).
 
 ## Workflow (from `CLAUDE.md`)
 
@@ -50,16 +52,23 @@ lib/money/format.ts      formatPeso, formatPesoCompact, formatPercent,
 lib/auth/password.ts     bcryptjs hash/verify, validatePassword
 lib/auth/session.ts      createSession, getSession, destroySession,
                          getCurrentUser, requireSession, hasUser
-lib/auth/errors.ts       error-code → message map
+lib/auth/throttle.ts     durable login lockout in the settings table
+lib/auth/errors.ts       error-code → message map (own-property lookups)
+lib/validation/          pure account/category form validators + error helpers
 lib/actions/auth.ts      setupPasscode, login, logout
+lib/actions/accounts.ts  createAccount, updateAccount, archive/restore
+lib/actions/categories.ts  createCategory, updateCategory, archive/restore
 lib/nav.ts               NAV_ITEMS (extended by later waves)
 app/                     root layout, entry router, 404, login, setup,
-                         (app)/layout, (app)/loading, (app)/dashboard
+                         error.tsx, global-error.tsx,
+                         (app)/layout, (app)/loading, (app)/dashboard,
+                         (app)/accounts (list/new/edit), (app)/categories,
+                         (app)/error.tsx
 components/pwa/          ServiceWorkerRegistrar (the only "use client")
-public/                  sw.js, icons
+public/                  sw.js, offline.html, icons
 scripts/generate-icons.mjs
-tests/                   139 tests across money, auth, actions, seed,
-                         queries, db-client guard + the setup/ harness
+tests/                   139 tests across money, auth, auth-errors, actions,
+                         seed, queries, db-client guard + the setup/ harness
 ```
 
 ## Test harness
@@ -76,8 +85,8 @@ tests/                   139 tests across money, auth, actions, seed,
 ## Verified working
 
 - `npm run typecheck` — clean.
-- `npm test` — **139 tests, all green** (7 files). Run 4× consecutively with identical results.
-- `npm run build` — succeeds. Routes: `/`, `/dashboard`, `/login`, `/setup` are dynamic (`ƒ`); only `/_not-found`, `/icon.svg`, `/manifest.webmanifest` are static.
+- `npm test` — **139 tests, all green** (7 files). The `auth-errors` suite is resynced with the Wave A‴ codes (`too-long`, `too-many-attempts`) and pins the own-property lookup, so the prototype-chain regression cannot come back. Run repeatedly with identical results.
+- `npm run build` — succeeds. Routes: `/`, `/dashboard`, `/accounts`, `/accounts/new`, `/accounts/[id]/edit`, `/categories`, `/categories/new`, `/categories/[id]/edit`, `/login`, `/setup` are dynamic (`ƒ`); only `/_not-found`, `/icon.svg`, `/manifest.webmanifest` are static. **Note:** Next.js 16.4.2 trips the built-in security-advisory reminder on the first build; retrying lets the build finish. An upgrade is pending.
 - Security headers are **actually served** (verified with `curl`): nosniff, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, and a CSP. Dynamic pages send `Cache-Control: no-store`.
 - Full auth flow exercised in dev **and** in a production build: setup → dashboard → logout, with the `mm_session` cookie carrying `HttpOnly`, `SameSite=lax`, `Max-Age=2592000`.
 - Client JS on the production dashboard: 6 chunks, 570 KB raw / **174 KB gzip** — all React + App Router baseline, no third-party client code. Exactly one `"use client"` file in the tree.
@@ -88,26 +97,26 @@ Round 1 (security + review + tester) after Wave B1:
 
 | # | Finding | Severity | Status |
 | --- | --- | --- | --- |
-| 1 | Service worker cached authenticated HTML into Cache Storage; the `"/"` offline fallback was dead code | high | **Wave A‴** |
-| 2 | `authErrorMessage()` resolved `constructor` / `__proto__` through the prototype chain → React crash on `/login?error=constructor` | high | **Wave A‴** |
-| 3 | No rate limiting on `login()` | medium | **Wave A‴** — durable lockout in the `settings` table |
-| 4 | `setupPasscode()` check-then-insert race could create two users | medium | **Wave A‴** |
-| 5 | `ensureSeedData()` opened a write transaction on every authenticated render | medium | **Wave A‴** |
-| 6 | A too-long passcode was reported with the `too-short` message | medium | **Wave A‴** |
-| 7 | The production DB guard only rejected URLs starting with `file:`; a bare relative path slipped through | medium | **Wave A‴** |
-| 8 | `getTransactions()` `limit`/`offset` unvalidated — `LIMIT -1` returned every row, `LIMIT 2.5` threw | medium | **Wave Q** |
-| 9 | `getMonthlyTotals()` `months` unbounded — a huge value looped for a billion iterations | medium | **Wave Q** |
-| 10 | `getCategoryTotals()` compared a category *kind* against a transaction *type* | medium | **Wave Q** |
-| 11 | `AccountBalance` had no `isLiability`, so the dashboard re-queried the account to render "owed" | medium | **Wave Q** |
-| 12 | The same date helpers were implemented twice (`queries.ts` and the dashboard) | low | **Wave Q** — extracted to `lib/dates.ts` |
+| 1 | Service worker cached authenticated HTML into Cache Storage; the `"/"` offline fallback was dead code | high | **Fixed** — Wave A‴ |
+| 2 | `authErrorMessage()` resolved `constructor` / `__proto__` through the prototype chain → React crash on `/login?error=constructor` | high | **Fixed** — Wave A‴ |
+| 3 | No rate limiting on `login()` | medium | **Fixed** — Wave A‴ (durable lockout in the `settings` table) |
+| 4 | `setupPasscode()` check-then-insert race could create two users | medium | **Fixed** — Wave A‴ |
+| 5 | `ensureSeedData()` opened a write transaction on every authenticated render | medium | **Fixed** — Wave A‴ |
+| 6 | A too-long passcode was reported with the `too-short` message | medium | **Fixed** — Wave A‴ |
+| 7 | The production DB guard only rejected URLs starting with `file:`; a bare relative path slipped through | medium | **Fixed** — Wave A‴ |
+| 8 | `getTransactions()` `limit`/`offset` unvalidated — `LIMIT -1` returned every row, `LIMIT 2.5` threw | medium | **Fixed** — Wave Q |
+| 9 | `getMonthlyTotals()` `months` unbounded — a huge value looped for a billion iterations | medium | **Fixed** — Wave Q |
+| 10 | `getCategoryTotals()` compared a category *kind* against a transaction *type* | medium | **Fixed** — Wave Q |
+| 11 | `AccountBalance` had no `isLiability`, so the dashboard re-queried the account to render "owed" | medium | **Fixed** — Wave Q |
+| 12 | The same date helpers were implemented twice (`queries.ts` and the dashboard) | low | **Fixed** — Wave Q (extracted to `lib/dates.ts`) |
 | 13 | Spec said "every action calls `requireSession()`" and "revalidatePath()", but setup/login are pre-auth and no action revalidates | low | **Spec amended** |
 | 14 | `formatPeso` divides centavos by 100 (float math) | low | **Accepted** — the money rules prescribe exactly this, and it only diverges above ~2⁴⁷ centavos |
 | 15 | No `import "server-only"` on the DB client | low | **Accepted** — would add a dependency; the `typeof window` guard already fails loudly |
 | 16 | CSP allows `'unsafe-inline'` | low | **Accepted** — nonces need `proxy.ts` and force dynamic rendering; documented in the spec |
 | 17 | `getDb()` / `Db` exported but unused | low | **Accepted** — `getDb` is a legitimate accessor and `tests/db-client-guard.test.ts` pins its export |
-| 18 | The `users` table is not a singleton at the schema level (random-UUID PK), so two concurrent setups create two users; `getCurrentUser()`'s unordered `limit(1)` then returns an arbitrary one | medium | **Wave A‴ follow-up** — deterministic PK |
-| 19 | The production guard was case-sensitive: `FILE:/path/x.db` bypassed it, because libsql lowercases the scheme internally | medium | **Wave A‴** — closed by the scheme allowlist; verify the comparison is case-insensitive |
-| 20 | No `app/error.tsx` / `app/global-error.tsx` — a production misconfiguration surfaces as a bare `Internal Server Error` with no app chrome | low | **Wave B2** |
+| 18 | The `users` table is not a singleton at the schema level (random-UUID PK), so two concurrent setups create two users; `getCurrentUser()`'s unordered `limit(1)` then returns an arbitrary one | medium | **Fixed** — deterministic `"user"` PK (`bf66cb7`) |
+| 19 | The production guard was case-sensitive: `FILE:/path/x.db` bypassed it, because libsql lowercases the scheme internally | medium | **Fixed** — the scheme allowlist (`libsql://`, `https://`, `wss://`) rejects every local spelling, case included (`bf66cb7`) |
+| 20 | No `app/error.tsx` / `app/global-error.tsx` — a production misconfiguration surfaces as a bare `Internal Server Error` with no app chrome | low | **Fixed** — three boundaries with distinct scopes (`bf66cb7`) |
 
 ## Decisions taken by the orchestrator
 
