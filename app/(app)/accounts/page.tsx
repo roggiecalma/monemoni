@@ -152,9 +152,6 @@ export default async function AccountsPage() {
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-0.5 text-xs text-ink-muted">
-                    {ACCOUNT_TYPE_LABELS[account.type]}
-                  </p>
                 </div>
 
                 <p
@@ -203,9 +200,6 @@ export default async function AccountsPage() {
                   </span>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{account.name}</p>
-                    <p className="text-xs text-ink-muted">
-                      {ACCOUNT_TYPE_LABELS[account.type]}
-                    </p>
                   </div>
                 </div>
                 <form action={restoreAccount.bind(null, account.id)}>
