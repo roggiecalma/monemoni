@@ -16,7 +16,7 @@
 
 ## Orchestration Policy
 
-When working on the main orchestrator model: do NOT write code or run tests yourself. Always delegate implementation to the `coder` subagent and testing to the `tester` subagent, looping up to 3 times until tester reports `PASS`.
+When working on the main orchestrator model: do NOT write code or run tests yourself. Always delegate implementation to the `coder` subagent and testing to the `tester` subagent, looping up to 3 times until tester reports `PASS`. Agent definitions live in `.opencode/agents/`; there is no reviewer or security agent.
 
 ## Commands
 
@@ -209,4 +209,4 @@ Zero icon libraries, zero chart libraries, zero form libraries.
 
 ## Current Status
 
-See `HANDOFF.md` for wave progress tracker. Wave B2a completed (all CRUD + security hardening). Next: Wave C (recurring bills, budgets, savings goals, reports, charts, CSV export).
+See `HANDOFF.md` for wave progress tracker. Wave B2a completed (all CRUD + security hardening). Next: Wave C features that remain enabled, including recurring bills and savings goals.

@@ -35,7 +35,6 @@ Do **not** add dependencies without a strong reason. Do not upgrade pinned versi
 ## Date rules
 
 - Transaction and bill dates are stored as `TEXT` in `YYYY-MM-DD` form (a local calendar date, never a timestamp).
-- A transaction also keeps a **time of day** in a separate nullable `TEXT` column, `HH:MM` (`00:00`–`23:59`). It is separate from `date` on purpose: every month/day grouping, budget and report keeps working on a calendar date, while the time gives ordering within a day and a precise display. `NULL` means "time unknown" — the column was added after the first rows existed, so old records stay valid without a time. The form defaults it to the current local time. Seconds are not stored: they are noise on a personal ledger entry.
 - Months are `TEXT` in `YYYY-MM` form.
 - Timestamps that are not calendar dates (`created_at`, `updated_at`, `expires_at`) are `INTEGER` epoch milliseconds.
 
@@ -54,13 +53,12 @@ All tables use `text` primary keys holding `crypto.randomUUID()`. Boolean column
 | `accounts` | `id`, `name`, `type` (`cash`\|`bank`\|`ewallet`\|`card`), `opening_balance`, `is_liability`, `archived`, `sort_order`, `created_at` |
 | `categories` | `id`, `name`, `kind` (`income`\|`expense`), `icon`, `color`, `archived`, `sort_order`, `created_at` |
 | `transactions` | `id`, `date`, `time`?, `type` (`income`\|`expense`\|`transfer`), `amount`, `category_id`?, `account_id`, `to_account_id`?, `note`?, `recurring_id`?, `created_at`, `updated_at` |
-| `budgets` | `id`, `category_id`, `month` (`YYYY-MM`), `amount` — unique on (`category_id`, `month`) |
 | `recurring_bills` | `id`, `name`, `amount`, `category_id`, `account_id`, `frequency` (`weekly`\|`monthly`\|`yearly`), `day_of_month`, `start_date`, `end_date`?, `active`, `last_materialized` (`YYYY-MM`), `created_at` |
 | `savings_goals` | `id`, `name`, `target_amount`, `target_date`?, `color`, `archived`, `created_at` |
 | `goal_contributions` | `id`, `goal_id`, `date`, `amount`, `account_id`, `note`?, `created_at` |
 | `settings` | `key` (PK), `value` |
 
-Indexes: `transactions(date)`, `transactions(account_id)`, `transactions(category_id)`, `budgets(category_id, month)`.
+Indexes: `transactions(date)`, `transactions(account_id)`, `transactions(category_id)`.
 
 ### Semantics that must hold
 

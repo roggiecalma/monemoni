@@ -13,11 +13,16 @@ import {
   accounts,
   categories,
   goalContributions,
+  recurringBills,
+  savingsGoals,
   transactions,
   type Account,
   type AccountType,
   type Category,
   type CategoryKind,
+  type GoalContribution,
+  type RecurringBill,
+  type SavingsGoal,
   type Transaction,
   type TransactionType,
 } from "./schema"
@@ -493,4 +498,93 @@ export async function getMonthlyTotals(months: number): Promise<MonthlyTotal[]> 
   }
 
   return result
+}
+
+/* -------------------------------------------------------------------------- */
+/* recurring bills                                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Every recurring bill, active ones first.
+ *
+ * Archived records do not exist for bills — a bill is either active or
+ * paused — so `includeInactive` decides whether the paused ones are listed.
+ */
+export async function getRecurringBills(includeInactive = true): Promise<RecurringBill[]> {
+  const condition = includeInactive ? undefined : eq(recurringBills.active, true)
+
+  return db
+    .select()
+    .from(recurringBills)
+    .where(condition)
+    .orderBy(desc(recurringBills.active), asc(recurringBills.name))
+}
+
+/** A single recurring bill by its id, or `null` when there is no such bill. */
+export async function getRecurringBillById(id: string): Promise<RecurringBill | null> {
+  const rows = await db.select().from(recurringBills).where(eq(recurringBills.id, id)).limit(1)
+
+  return rows[0] ?? null
+}
+
+/* -------------------------------------------------------------------------- */
+/* savings goals                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Every savings goal with the total contributed to it.
+ *
+ * The left join keeps a goal with no contributions in the list, and
+ * `coalesce` turns its missing sum into `0`.
+ */
+export async function getSavingsGoalsWithTotals(
+  includeArchived = true,
+): Promise<Array<SavingsGoal & { contributed: number }>> {
+  const condition = includeArchived ? undefined : eq(savingsGoals.archived, false)
+
+  return db
+    .select({
+      id: savingsGoals.id,
+      name: savingsGoals.name,
+      targetAmount: savingsGoals.targetAmount,
+      currency: savingsGoals.currency,
+      targetDate: savingsGoals.targetDate,
+      color: savingsGoals.color,
+      archived: savingsGoals.archived,
+      createdAt: savingsGoals.createdAt,
+      contributed: sql<number>`coalesce(sum(${goalContributions.amount}), 0)`.mapWith(Number),
+    })
+    .from(savingsGoals)
+    .leftJoin(goalContributions, eq(goalContributions.goalId, savingsGoals.id))
+    .where(condition)
+    .groupBy(savingsGoals.id)
+    .orderBy(asc(savingsGoals.archived), desc(savingsGoals.createdAt))
+}
+
+/** A single savings goal by its id, or `null` when there is no such goal. */
+export async function getSavingsGoalById(id: string): Promise<SavingsGoal | null> {
+  const rows = await db.select().from(savingsGoals).where(eq(savingsGoals.id, id)).limit(1)
+
+  return rows[0] ?? null
+}
+
+/** Every contribution to a goal, newest first. */
+export async function getGoalContributions(goalId: string): Promise<GoalContribution[]> {
+  return db
+    .select()
+    .from(goalContributions)
+    .where(eq(goalContributions.goalId, goalId))
+    .orderBy(desc(goalContributions.date), desc(goalContributions.createdAt))
+}
+
+/** The total contributed to a goal, in centavos (`0` when there is none). */
+export async function getGoalContributionTotal(goalId: string): Promise<number> {
+  const rows = await db
+    .select({
+      total: sql<number>`coalesce(sum(${goalContributions.amount}), 0)`.mapWith(Number),
+    })
+    .from(goalContributions)
+    .where(eq(goalContributions.goalId, goalId))
+
+  return rows[0]?.total ?? 0
 }

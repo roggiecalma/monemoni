@@ -9,7 +9,6 @@
 import { db } from "@/lib/db/client"
 import {
   accounts,
-  budgets,
   categories,
   goalContributions,
   recurringBills,
@@ -26,7 +25,6 @@ import {
 /** Empties every table of the test database. */
 export async function resetDatabase(): Promise<void> {
   await db.delete(goalContributions)
-  await db.delete(budgets)
   await db.delete(transactions)
   await db.delete(recurringBills)
   await db.delete(savingsGoals)

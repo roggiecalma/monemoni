@@ -152,32 +152,6 @@ export type Transaction = typeof transactions.$inferSelect
 export type NewTransaction = typeof transactions.$inferInsert
 
 /* -------------------------------------------------------------------------- */
-/* budgets                                                                     */
-/* -------------------------------------------------------------------------- */
-
-export const budgets = sqliteTable(
-  "budgets",
-  {
-    id: text("id").primaryKey(),
-    categoryId: text("category_id")
-      .notNull()
-      .references(() => categories.id, { onDelete: "cascade" }),
-    /** `YYYY-MM` */
-    month: text("month").notNull(),
-    /** Budgeted amount in centavos. */
-    amount: integer("amount").notNull(),
-    currency: text("currency").notNull().default(DEFAULT_CURRENCY),
-  },
-  (t) => [
-    index("budgets_category_month_idx").on(t.categoryId, t.month),
-    unique("budgets_category_month_unique").on(t.categoryId, t.month),
-  ],
-)
-
-export type Budget = typeof budgets.$inferSelect
-export type NewBudget = typeof budgets.$inferInsert
-
-/* -------------------------------------------------------------------------- */
 /* recurring bills                                                             */
 /* -------------------------------------------------------------------------- */
 

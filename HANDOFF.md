@@ -15,25 +15,23 @@ State as of the end of **Wave B2a** (A‴ and Q′ included). Read `ARCHITECTURE
 | Q′ | Follow-up: restore type-driven category totals; `offset` implies a limit | **done** — `bf66cb7` |
 | B2a | Accounts + categories CRUD, nav, error boundaries | **done** — `bf66cb7` |
 | B2b | Transactions CRUD (list, month/type filters, income/expense/transfer forms, delete) | **done** |
-| C | Recurring bills, budgets, savings goals, reports, SVG charts, CSV export | not started |
+| C | Recurring bills, savings goals, reports, SVG charts, CSV export | in progress |
 | D | Turso + Vercel deploy, README | not started |
 
 `origin/main` is in sync with `main` at `bf66cb7`.
 
 **Next:** Wave **C** — recurring bills, budgets, savings goals, reports, SVG charts, CSV export.
 
-## Workflow (from `CLAUDE.md`)
+## Workflow
 
-Act as orchestrator and delegate in order: **coder → tester → reviewer → security**. If reviewer or security report problems, send them back to the coder and repeat the checks.
+Act as orchestrator and delegate in order: **coder → tester**. If the tester reports `FAIL`, send the exact diagnostics back to the coder for a targeted fix, then re-run the tester — up to **3 iterations**, then stop and report the blocker.
 
-The role definitions live in `.claude/agents/`:
+The role definitions live in `.opencode/agents/` and are registered as native OpenCode subagents (`coder`, `tester`):
 
 - **coder** — implements exactly what is asked; keeps changes focused; no unrelated refactors; reports files changed + summary.
-- **tester** — writes and runs tests (normal, edge, error cases). **Never modifies implementation code.** Reports failures honestly.
-- **reviewer** — read-only. Short list ordered by importance, each with file + suggested fix.
-- **security** — read-only. Rates each finding high/medium/low with file + fix. If nothing found, states what was checked.
+- **tester** — writes and runs tests (normal, edge, error cases). **Never modifies implementation code.** Reports failures honestly with a `PASS`/`FAIL` verdict.
 
-This harness has no agents registered under those names. Use the `general` subagent and paste the relevant role definition into the prompt.
+The old `reviewer` and `security` roles were removed permanently. Security and quality checks are now handled by the orchestrator and tester.
 
 ## What exists
 

@@ -90,6 +90,26 @@ export function dateKey(date: Date): string {
 }
 
 /**
+ * Shifts a `YYYY-MM` month key by a number of months.
+ *
+ * `shiftMonth("2026-01", -1)` → `"2025-12"`,
+ * `shiftMonth("2026-12", 1)` → `"2027-01"`.
+ *
+ * An invalid month or a non-integer delta is returned unchanged, so a
+ * malformed query string can never be turned into an invented month.
+ */
+export function shiftMonth(month: string, delta: number): string {
+  const value = month.trim()
+
+  if (!isValidMonthKey(value) || !Number.isInteger(delta)) return month
+
+  const year = Number(value.slice(0, 4))
+  const monthNumber = Number(value.slice(5, 7))
+
+  return monthKey(new Date(year, monthNumber - 1 + delta, 1))
+}
+
+/**
  * The day key (`YYYY-MM-DD`) of the last day of the given date's month.
  *
  * `new Date(2026, 1, 10)` → `"2026-02-28"`.

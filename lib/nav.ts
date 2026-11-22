@@ -16,6 +16,8 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
   { href: "/transactions", label: "Transactions", icon: "receipt" },
+  { href: "/recurring", label: "Recurring", icon: "repeat" },
+  { href: "/goals", label: "Goals", icon: "target" },
   { href: "/accounts", label: "Accounts", icon: "wallet" },
   { href: "/categories", label: "Categories", icon: "tag" },
 ]

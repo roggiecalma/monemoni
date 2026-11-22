@@ -31,6 +31,9 @@ export type IconName =
   | "alert"
   | "lock"
   | "check"
+  | "chart"
+  | "repeat"
+  | "target"
 
 const PATHS: Record<IconName, ReactNode> = {
   dashboard: (
@@ -148,6 +151,27 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   check: <path d="m5 12 4.5 4.5L19 7" />,
+  chart: (
+    <>
+      <path d="M3 21h18" />
+      <path d="M6 21v-9M11 21V5M16 21v-6M21 21v-10" />
+    </>
+  ),
+  repeat: (
+    <>
+      <path d="m17 2 4 4-4 4" />
+      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+      <path d="m7 22-4-4 4-4" />
+      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+    </>
+  ),
+  target: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" />
+      <circle cx="12" cy="12" r="1" />
+    </>
+  ),
 }
 
 export function Icon({

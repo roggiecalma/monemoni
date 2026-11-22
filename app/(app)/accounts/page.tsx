@@ -164,7 +164,7 @@ export default async function AccountsPage() {
                     >
                       {formatPeso(owedAmount ? Math.abs(balance) : balance)}
                       {owedAmount ? (
-                        <span className="ml-1.5 font-sans text-xs font-normal text-ink-muted">owed</span>
+                        <span className="ml-1.5 font-sans text-xs font-normal text-ink-muted"></span>
                       ) : null}
                     </p>
                   </div>
