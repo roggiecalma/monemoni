@@ -18,6 +18,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/transactions", label: "Transactions", icon: "receipt" },
   { href: "/recurring", label: "Recurring", icon: "repeat" },
   { href: "/goals", label: "Goals", icon: "target" },
+  { href: "/loans", label: "Borrowed / Lent", icon: "users" },
   { href: "/accounts", label: "Accounts", icon: "wallet" },
   { href: "/categories", label: "Categories", icon: "tag" },
 ]

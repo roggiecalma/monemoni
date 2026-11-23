@@ -27,6 +27,9 @@ export type TransactionType = (typeof TRANSACTION_TYPES)[number]
 export const RECURRING_FREQUENCIES = ["weekly", "monthly", "yearly"] as const
 export type RecurringFrequency = (typeof RECURRING_FREQUENCIES)[number]
 
+export const LOAN_DIRECTIONS = ["i_owe", "owed_to_me"] as const
+export type LoanDirection = (typeof LOAN_DIRECTIONS)[number]
+
 export const DEFAULT_CURRENCY = "PHP"
 
 /* -------------------------------------------------------------------------- */
@@ -238,6 +241,64 @@ export const goalContributions = sqliteTable(
 
 export type GoalContribution = typeof goalContributions.$inferSelect
 export type NewGoalContribution = typeof goalContributions.$inferInsert
+
+/* -------------------------------------------------------------------------- */
+/* loans & loan payments                                                      */
+/* -------------------------------------------------------------------------- */
+
+export const loans = sqliteTable(
+  "loans",
+  {
+    id: text("id").primaryKey(),
+    person: text("person").notNull(),
+    amount: integer("amount").notNull(),
+    currency: text("currency").notNull().default("PHP"),
+    direction: text("direction", { enum: LOAN_DIRECTIONS }).notNull(),
+    accountId: text("account_id").references(() => accounts.id),
+    transactionId: text("transaction_id").references(() => transactions.id, { onDelete: "set null" }),
+    date: text("date").notNull(),
+    dueDate: text("due_date"),
+    note: text("note"),
+    archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at").notNull().$defaultFn(() => Date.now()),
+    updatedAt: integer("updated_at").notNull().$defaultFn(() => Date.now()),
+  },
+  (t) => [
+    index("loans_direction_idx").on(t.direction),
+    index("loans_account_id_idx").on(t.accountId),
+    index("loans_archived_idx").on(t.archived),
+    index("loans_date_idx").on(t.date),
+  ],
+)
+
+export type Loan = typeof loans.$inferSelect
+export type NewLoan = typeof loans.$inferInsert
+
+export const loanPayments = sqliteTable(
+  "loan_payments",
+  {
+    id: text("id").primaryKey(),
+    loanId: text("loan_id")
+      .notNull()
+      .references(() => loans.id, { onDelete: "cascade" }),
+    date: text("date").notNull(),
+    amount: integer("amount").notNull(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id),
+    transactionId: text("transaction_id").references(() => transactions.id, { onDelete: "set null" }),
+    note: text("note"),
+    createdAt: integer("created_at").notNull().$defaultFn(() => Date.now()),
+  },
+  (t) => [
+    index("loan_payments_loan_id_idx").on(t.loanId),
+    index("loan_payments_account_id_idx").on(t.accountId),
+    index("loan_payments_date_idx").on(t.date),
+  ],
+)
+
+export type LoanPayment = typeof loanPayments.$inferSelect
+export type NewLoanPayment = typeof loanPayments.$inferInsert
 
 /* -------------------------------------------------------------------------- */
 /* settings                                                                    */

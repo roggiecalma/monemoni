@@ -19,8 +19,9 @@ import { eq } from "drizzle-orm"
 import { redirect } from "next/navigation"
 
 import { requireSession } from "@/lib/auth/session"
+import { isValidTimeKey, nowTimeKey } from "@/lib/dates"
 import { db } from "@/lib/db/client"
-import { accounts, categories, transactions } from "@/lib/db/schema"
+import { accounts, categories, loans, transactions } from "@/lib/db/schema"
 import { getTransactionById } from "@/lib/db/queries"
 import {
   readTransactionFormValues,
@@ -28,6 +29,10 @@ import {
   validateTransaction,
   type TransactionActionResult,
 } from "@/lib/validation/transactions"
+import {
+  validateLoan,
+  type LoanErrorCode,
+} from "@/lib/validation/loans"
 
 /**
  * Does this account exist?
@@ -110,6 +115,99 @@ async function checkReferences(input: {
 export async function createTransaction(formData: FormData): Promise<TransactionActionResult> {
   // No session, no write — this check comes before anything else.
   await requireSession()
+
+  const rawType = formData.get("type")
+  if (rawType === "borrowed" || rawType === "lent") {
+    const direction = rawType === "borrowed" ? "i_owe" : "owed_to_me"
+    const read = (key: string): string => {
+      const value = formData.get(key)
+      return typeof value === "string" ? value : ""
+    }
+
+    const loanValidation = validateLoan({
+      person: read("person"),
+      amount: read("amount"),
+      direction,
+      date: read("date"),
+      dueDate: read("dueDate"),
+      accountId: read("accountId"),
+      note: read("note"),
+    })
+
+    if (!loanValidation.ok) {
+      const codeMap: Record<LoanErrorCode, Parameters<typeof transactionFailure>[0]> = {
+        "person-required": "person-required",
+        "person-too-long": "person-too-long",
+        "amount-required": "amount-required",
+        "amount-invalid": "amount-invalid",
+        "amount-not-positive": "amount-not-positive",
+        "direction-invalid": "type-invalid",
+        "date-required": "date-required",
+        "date-invalid": "date-invalid",
+        "due-date-invalid": "date-invalid",
+        "account-required": "account-required",
+        "account-invalid": "account-invalid",
+        "note-too-long": "note-too-long",
+      }
+      return transactionFailure(codeMap[loanValidation.code] ?? "type-invalid")
+    }
+
+    const { person, amount, date, dueDate, accountId, note } = loanValidation.value
+    if (!accountId) {
+      return transactionFailure("account-required")
+    }
+    if (!(await accountExists(accountId))) {
+      return transactionFailure("account-invalid")
+    }
+
+    const transactionId = crypto.randomUUID()
+    const loanId = crypto.randomUUID()
+    const now = Date.now()
+    const rawTime = read("time").trim()
+    if (rawTime.length > 0 && !isValidTimeKey(rawTime)) {
+      return transactionFailure("time-invalid")
+    }
+    const time = rawTime.length > 0 ? rawTime : nowTimeKey()
+
+    const txnNote =
+      direction === "i_owe"
+        ? note
+          ? `Borrowed from ${person} — ${note}`
+          : `Borrowed from ${person}`
+        : note
+          ? `Lent to ${person} — ${note}`
+          : `Lent to ${person}`
+
+    await db.insert(transactions).values({
+      id: transactionId,
+      date,
+      time,
+      type: direction === "i_owe" ? "income" : "expense",
+      amount,
+      accountId,
+      note: txnNote,
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    await db.insert(loans).values({
+      id: loanId,
+      person,
+      amount,
+      currency: "PHP",
+      direction,
+      accountId,
+      transactionId,
+      date,
+      dueDate,
+      note,
+      archived: false,
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    redirect(`/loans?tab=${direction}`)
+  }
 
   const validation = validateTransaction(readTransactionFormValues(formData))
 

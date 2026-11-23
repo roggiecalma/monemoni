@@ -16,7 +16,7 @@
 
 ## Orchestration Policy
 
-When working on the main orchestrator model: do NOT write code or run tests yourself. Always delegate implementation to the `coder` subagent and testing to the `tester` subagent, looping up to 3 times until tester reports `PASS`. Agent definitions live in `.opencode/agents/`; there is no reviewer or security agent.
+When working on the main orchestrator model: do NOT write code or run tests yourself. Always delegate implementation to the `coder` agent and testing to the `tester` agent using the `swarm` tool so exact models are pinned (`coder`: `model: "gemini-3.8-flash-low"`, `tester`: `model: "claude-sonnet-5-5-high"`), looping up to 3 times until tester reports `PASS`. Agent definitions live in `.agents/`; do not use `.opencode/agents/`. There is no reviewer or security agent.
 
 ## Commands
 
@@ -209,4 +209,4 @@ Zero icon libraries, zero chart libraries, zero form libraries.
 
 ## Current Status
 
-See `HANDOFF.md` for wave progress tracker. Wave B2a completed (all CRUD + security hardening). Next: Wave C features that remain enabled, including recurring bills and savings goals.
+See `HANDOFF.md` for wave progress tracker. Core features, Recurring bills, Savings goals, and Loans are completed (342 tests passing across 15 files). Deployed on Turso + Vercel.

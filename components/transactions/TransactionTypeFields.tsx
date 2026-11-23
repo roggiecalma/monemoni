@@ -25,12 +25,17 @@ import { useState } from "react"
 import { Icon, type IconName } from "@/components/ui/icons"
 import { inputClass } from "@/lib/ui"
 import type { Account, Category, TransactionType } from "@/lib/db/schema"
+import { LOAN_PERSON_MAX_LENGTH } from "@/lib/validation/loans"
+
+export type FormTransactionType = TransactionType | "borrowed" | "lent"
 
 /** The icon shown next to each type in the radio group. */
-const TYPE_ICONS: Record<TransactionType, IconName> = {
+const TYPE_ICONS: Record<FormTransactionType, IconName> = {
   income: "arrow-up-right",
   expense: "arrow-down-left",
   transfer: "transfer",
+  borrowed: "users",
+  lent: "users",
 }
 
 export function TransactionTypeFields({
@@ -43,6 +48,7 @@ export function TransactionTypeFields({
   defaultAccountId,
   defaultCategoryId,
   defaultToAccountId,
+  allowLoanTypes = false,
 }: {
   /** The type vocabulary, passed from the server so the schema is not bundled. */
   types: readonly TransactionType[]
@@ -54,18 +60,30 @@ export function TransactionTypeFields({
   defaultAccountId?: string
   defaultCategoryId?: string
   defaultToAccountId?: string
+  allowLoanTypes?: boolean
 }) {
-  const [type, setType] = useState<TransactionType>(defaultType)
+  const [type, setType] = useState<FormTransactionType>(defaultType)
+
+  const allTypes: readonly FormTransactionType[] = allowLoanTypes
+    ? [...types, "borrowed", "lent"]
+    : types
+
+  const allLabels: Record<FormTransactionType, string> = {
+    ...labels,
+    borrowed: "Borrowed",
+    lent: "Lent",
+  }
 
   const isTransfer = type === "transfer"
+  const isLoan = type === "borrowed" || type === "lent"
   const categories = type === "income" ? incomeCategories : expenseCategories
 
   return (
     <>
       <fieldset className="space-y-1.5">
         <legend className="block text-sm font-medium text-ink">Type</legend>
-        <div className="grid grid-cols-3 gap-2">
-          {types.map((option) => (
+        <div className={`grid gap-2 ${allowLoanTypes ? "grid-cols-2 sm:grid-cols-5" : "grid-cols-3"}`}>
+          {allTypes.map((option) => (
             <label
               key={option}
               className="relative flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-border bg-surface px-3 py-3 text-sm font-medium text-ink-muted transition hover:border-border-strong hover:bg-surface-muted has-checked:border-brand-500 has-checked:bg-brand-50 has-checked:text-brand-800 has-checked:ring-4 has-checked:ring-brand-500/15 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500 dark:has-checked:bg-brand-900/30 dark:has-checked:text-brand-200"
@@ -79,53 +97,32 @@ export function TransactionTypeFields({
                 className="sr-only"
               />
               <Icon name={TYPE_ICONS[option]} className="size-4" />
-              {labels[option]}
+              {allLabels[option]}
             </label>
           ))}
         </div>
         <p className="text-xs leading-relaxed text-ink-muted">
-          Income adds to a balance, an expense takes away, a transfer moves money between two of
-          your accounts.
+          {allowLoanTypes
+            ? "Income adds, expense spends, transfer moves between accounts, borrowed / lent tracks debts."
+            : "Income adds to a balance, an expense takes away, a transfer moves money between two of your accounts."}
         </p>
       </fieldset>
 
-      {/* Account beside the category — or beside the destination account
-          when this is a transfer. */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <label htmlFor="accountId" className="block text-sm font-medium text-ink">
-            Account
-          </label>
-          <select
-            id="accountId"
-            name="accountId"
-            required
-            defaultValue={defaultAccountId ?? ""}
-            className={inputClass}
-          >
-            <option value="">Choose an account</option>
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-                {account.archived ? " · archived" : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {isTransfer ? (
+      {/* When borrowed or lent is selected */}
+      {isLoan ? (
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <label htmlFor="toAccountId" className="block text-sm font-medium text-ink">
-              To account
+            <label htmlFor="accountId" className="block text-sm font-medium text-ink">
+              {type === "borrowed" ? "Place into account" : "Take from account"}
             </label>
             <select
-              id="toAccountId"
-              name="toAccountId"
+              id="accountId"
+              name="accountId"
               required
-              defaultValue={defaultToAccountId ?? ""}
+              defaultValue={defaultAccountId ?? ""}
               className={inputClass}
             >
-              <option value="">Choose the destination</option>
+              <option value="">Choose an account</option>
               {accounts.map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.name}
@@ -134,29 +131,97 @@ export function TransactionTypeFields({
               ))}
             </select>
           </div>
-        ) : (
+
           <div className="space-y-1.5">
-            <label htmlFor="categoryId" className="block text-sm font-medium text-ink">
-              Category
+            <label htmlFor="person" className="block text-sm font-medium text-ink">
+              Person&apos;s name
+            </label>
+            <input
+              id="person"
+              name="person"
+              type="text"
+              required
+              maxLength={LOAN_PERSON_MAX_LENGTH}
+              placeholder="e.g. Maria Santos"
+              className={inputClass}
+            />
+          </div>
+
+          <div className="space-y-1.5 sm:col-span-2">
+            <label htmlFor="dueDate" className="block text-sm font-medium text-ink">
+              Due date <span className="text-xs font-normal text-ink-muted">(optional)</span>
+            </label>
+            <input id="dueDate" name="dueDate" type="date" className={inputClass} />
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <label htmlFor="accountId" className="block text-sm font-medium text-ink">
+              Account
             </label>
             <select
-              id="categoryId"
-              name="categoryId"
+              id="accountId"
+              name="accountId"
               required
-              defaultValue={defaultCategoryId ?? ""}
+              defaultValue={defaultAccountId ?? ""}
               className={inputClass}
             >
-              <option value="">Choose a category</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.icon} {category.name}
-                  {category.archived ? " · archived" : ""}
+              <option value="">Choose an account</option>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                  {account.archived ? " · archived" : ""}
                 </option>
               ))}
             </select>
           </div>
-        )}
-      </div>
+
+          {isTransfer ? (
+            <div className="space-y-1.5">
+              <label htmlFor="toAccountId" className="block text-sm font-medium text-ink">
+                To account
+              </label>
+              <select
+                id="toAccountId"
+                name="toAccountId"
+                required
+                defaultValue={defaultToAccountId ?? ""}
+                className={inputClass}
+              >
+                <option value="">Choose the destination</option>
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                    {account.archived ? " · archived" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <label htmlFor="categoryId" className="block text-sm font-medium text-ink">
+                Category
+              </label>
+              <select
+                id="categoryId"
+                name="categoryId"
+                required
+                defaultValue={defaultCategoryId ?? ""}
+                className={inputClass}
+              >
+                <option value="">Choose a category</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.icon} {category.name}
+                    {category.archived ? " · archived" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      )}
     </>
   )
 }

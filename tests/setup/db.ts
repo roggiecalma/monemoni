@@ -11,6 +11,8 @@ import {
   accounts,
   categories,
   goalContributions,
+  loanPayments,
+  loans,
   recurringBills,
   savingsGoals,
   sessions,
@@ -19,11 +21,15 @@ import {
   users,
   type AccountType,
   type CategoryKind,
+  type LoanDirection,
+  type RecurringFrequency,
   type TransactionType,
 } from "@/lib/db/schema"
 
 /** Empties every table of the test database. */
 export async function resetDatabase(): Promise<void> {
+  await db.delete(loanPayments)
+  await db.delete(loans)
   await db.delete(goalContributions)
   await db.delete(transactions)
   await db.delete(recurringBills)
@@ -114,18 +120,54 @@ export async function insertTransaction(fixture: TransactionFixture): Promise<st
   return fixture.id
 }
 
+export interface RecurringBillFixture {
+  id: string
+  name: string
+  amount: number
+  accountId: string
+  frequency?: RecurringFrequency
+  dayOfMonth?: number
+  startDate?: string
+  endDate?: string | null
+  categoryId?: string | null
+  active?: boolean
+  lastMaterialized?: string | null
+  createdAt?: number
+}
+
+/** Inserts a recurring bill and returns its id. */
+export async function insertRecurringBill(fixture: RecurringBillFixture): Promise<string> {
+  await db.insert(recurringBills).values({
+    id: fixture.id,
+    name: fixture.name,
+    amount: fixture.amount,
+    accountId: fixture.accountId,
+    frequency: fixture.frequency ?? "monthly",
+    dayOfMonth: fixture.dayOfMonth ?? 1,
+    startDate: fixture.startDate ?? "2026-01-01",
+    endDate: fixture.endDate ?? null,
+    categoryId: fixture.categoryId ?? null,
+    active: fixture.active ?? true,
+    lastMaterialized: fixture.lastMaterialized ?? null,
+    createdAt: fixture.createdAt ?? 1,
+  })
+  return fixture.id
+}
+
 /** Inserts a savings goal and returns its id. */
 export async function insertSavingsGoal(
   id: string,
   name = "Emergency fund",
   targetAmount = 500000,
+  options: { color?: string; targetDate?: string | null; archived?: boolean } = {},
 ): Promise<string> {
   await db.insert(savingsGoals).values({
     id,
     name,
     targetAmount,
-    color: "#22c55e",
-    archived: false,
+    color: options.color ?? "#22c55e",
+    targetDate: options.targetDate ?? null,
+    archived: options.archived ?? false,
     createdAt: 1,
   })
   return id
@@ -156,4 +198,115 @@ export async function insertGoalContribution(fixture: {
 export async function insertUser(id: string, passwordHash: string): Promise<string> {
   await db.insert(users).values({ id, passwordHash, createdAt: 1 })
   return id
+}
+
+export interface LoanFixture {
+  id: string
+  person: string
+  amount: number
+  direction: LoanDirection
+  date?: string
+  dueDate?: string | null
+  note?: string | null
+  currency?: string
+  archived?: boolean
+  createdAt?: number
+  updatedAt?: number
+}
+
+export async function insertLoan(fixture: LoanFixture): Promise<string>
+export async function insertLoan(
+  id: string,
+  person?: string,
+  amount?: number,
+  direction?: LoanDirection,
+  options?: { date?: string; dueDate?: string | null; note?: string | null; archived?: boolean },
+): Promise<string>
+export async function insertLoan(
+  fixtureOrId: LoanFixture | string,
+  maybePerson?: string,
+  maybeAmount?: number,
+  maybeDirection?: LoanDirection,
+  maybeOptions?: { date?: string; dueDate?: string | null; note?: string | null; archived?: boolean },
+): Promise<string> {
+  const fixture: LoanFixture =
+    typeof fixtureOrId === "string"
+      ? {
+          id: fixtureOrId,
+          person: maybePerson ?? "Test Person",
+          amount: maybeAmount ?? 100000,
+          direction: maybeDirection ?? "i_owe",
+          date: maybeOptions?.date ?? "2026-01-01",
+          dueDate: maybeOptions?.dueDate ?? null,
+          note: maybeOptions?.note ?? null,
+          archived: maybeOptions?.archived ?? false,
+        }
+      : fixtureOrId
+
+  await db.insert(loans).values({
+    id: fixture.id,
+    person: fixture.person,
+    amount: fixture.amount,
+    currency: fixture.currency ?? "PHP",
+    direction: fixture.direction,
+    date: fixture.date ?? "2026-01-01",
+    dueDate: fixture.dueDate ?? null,
+    note: fixture.note ?? null,
+    archived: fixture.archived ?? false,
+    createdAt: fixture.createdAt ?? 1,
+    updatedAt: fixture.updatedAt ?? 1,
+  })
+  return fixture.id
+}
+
+export interface LoanPaymentFixture {
+  id: string
+  loanId: string
+  date: string
+  amount: number
+  accountId: string
+  transactionId?: string | null
+  note?: string | null
+  createdAt?: number
+}
+
+export async function insertLoanPayment(fixture: LoanPaymentFixture): Promise<string>
+export async function insertLoanPayment(
+  id: string,
+  loanId?: string,
+  amount?: number,
+  accountId?: string,
+  options?: { date?: string; transactionId?: string | null; note?: string | null },
+): Promise<string>
+export async function insertLoanPayment(
+  fixtureOrId: LoanPaymentFixture | string,
+  maybeLoanId?: string,
+  maybeAmount?: number,
+  maybeAccountId?: string,
+  maybeOptions?: { date?: string; transactionId?: string | null; note?: string | null },
+): Promise<string> {
+  const fixture: LoanPaymentFixture =
+    typeof fixtureOrId === "string"
+      ? {
+          id: fixtureOrId,
+          loanId: maybeLoanId!,
+          date: maybeOptions?.date ?? "2026-01-01",
+          amount: maybeAmount ?? 50000,
+          accountId: maybeAccountId!,
+          transactionId: maybeOptions?.transactionId ?? null,
+          note: maybeOptions?.note ?? null,
+        }
+      : fixtureOrId
+
+  await db.insert(loanPayments).values({
+    id: fixture.id,
+    loanId: fixture.loanId,
+    date: fixture.date,
+    amount: fixture.amount,
+    accountId: fixture.accountId,
+    transactionId: fixture.transactionId ?? null,
+    note: fixture.note ?? null,
+    createdAt: fixture.createdAt ?? 1,
+  })
+  return fixture.id
 }

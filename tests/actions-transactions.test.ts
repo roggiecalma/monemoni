@@ -15,7 +15,8 @@ import { createTransaction, deleteTransaction, updateTransaction } from "@/lib/a
 import { hashPassword } from "@/lib/auth/password"
 import { createSession } from "@/lib/auth/session"
 import { db } from "@/lib/db/client"
-import { accounts, transactions } from "@/lib/db/schema"
+import { getAccountBalances, getLoanSummary } from "@/lib/db/queries"
+import { accounts, loans, transactions } from "@/lib/db/schema"
 
 import { insertAccount, insertCategory, insertUser, resetDatabase } from "./setup/db"
 
@@ -311,5 +312,208 @@ describe("deleteTransaction", () => {
     await expect(deleteTransaction("no-such-id", new FormData())).rejects.toThrow(
       "NEXT_REDIRECT:/transactions",
     )
+  })
+})
+
+/** A Borrowed / Lent form as posted from /transactions/new. */
+function loanTxnForm(type: "borrowed" | "lent", overrides: Record<string, string> = {}): FormData {
+  return formData({
+    type,
+    person: "Maria Santos",
+    amount: "1,500.00",
+    date: "2026-10-05",
+    time: "09:15",
+    accountId: BANK,
+    dueDate: "2026-12-31",
+    note: "Rent help",
+    ...overrides,
+  })
+}
+
+async function balanceOf(accountId: string): Promise<number | undefined> {
+  const balances = await getAccountBalances()
+  return balances.find((a) => a.id === accountId)?.balance
+}
+
+describe("createTransaction with type borrowed / lent", () => {
+  it("borrowed creates an income transaction and an i_owe loan, raises the balance and redirects", async () => {
+    await authenticate()
+    const before = await balanceOf(BANK)
+
+    await expect(createTransaction(loanTxnForm("borrowed"))).rejects.toThrow(
+      "NEXT_REDIRECT:/loans?tab=i_owe",
+    )
+
+    const txns = await db.select().from(transactions)
+    expect(txns).toHaveLength(1)
+    expect(txns[0]).toMatchObject({
+      type: "income",
+      amount: 150000,
+      date: "2026-10-05",
+      time: "09:15",
+      accountId: BANK,
+      categoryId: null,
+      toAccountId: null,
+      note: "Borrowed from Maria Santos — Rent help",
+    })
+
+    const rows = await db.select().from(loans)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      person: "Maria Santos",
+      amount: 150000,
+      direction: "i_owe",
+      accountId: BANK,
+      transactionId: txns[0]!.id,
+      date: "2026-10-05",
+      dueDate: "2026-12-31",
+      note: "Rent help",
+      archived: false,
+    })
+
+    expect(await balanceOf(BANK)).toBe((before ?? 0) + 150000)
+    expect(await getLoanSummary()).toEqual({
+      totalIOwe: 150000,
+      totalOwedToMe: 0,
+      netPosition: -150000,
+    })
+  })
+
+  it("lent creates an expense transaction and an owed_to_me loan, lowers the balance and redirects", async () => {
+    await authenticate()
+    const before = await balanceOf(CASH)
+
+    await expect(
+      createTransaction(loanTxnForm("lent", { accountId: CASH, person: "Ana Reyes", note: "" })),
+    ).rejects.toThrow("NEXT_REDIRECT:/loans?tab=owed_to_me")
+
+    const txns = await db.select().from(transactions)
+    expect(txns).toHaveLength(1)
+    expect(txns[0]).toMatchObject({
+      type: "expense",
+      amount: 150000,
+      accountId: CASH,
+      note: "Lent to Ana Reyes",
+    })
+
+    const rows = await db.select().from(loans)
+    expect(rows[0]).toMatchObject({
+      direction: "owed_to_me",
+      accountId: CASH,
+      transactionId: txns[0]!.id,
+      note: null,
+    })
+
+    expect(await balanceOf(CASH)).toBe((before ?? 0) - 150000)
+    expect(await getLoanSummary()).toEqual({
+      totalIOwe: 0,
+      totalOwedToMe: 150000,
+      netPosition: 150000,
+    })
+  })
+
+  it("stores no due date when it is left blank and ignores any category / destination account", async () => {
+    await authenticate()
+
+    await expect(
+      createTransaction(
+        loanTxnForm("borrowed", { dueDate: "", categoryId: SALARY, toAccountId: CASH }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT:/loans?tab=i_owe")
+
+    expect((await db.select().from(loans))[0]?.dueDate).toBeNull()
+    const [txn] = await db.select().from(transactions)
+    expect(txn?.categoryId).toBeNull()
+    expect(txn?.toAccountId).toBeNull()
+  })
+
+  it("falls back to the current time when no time is posted", async () => {
+    await authenticate()
+
+    await expect(createTransaction(loanTxnForm("lent", { time: "" }))).rejects.toThrow(
+      "NEXT_REDIRECT:/loans?tab=owed_to_me",
+    )
+
+    const [txn] = await db.select().from(transactions)
+    expect(txn?.time).toMatch(/^\d{2}:\d{2}$/)
+  })
+
+  it("requires an account", async () => {
+    await authenticate()
+
+    expect(await createTransaction(loanTxnForm("borrowed", { accountId: "" }))).toEqual({
+      code: "account-required",
+      error: "Choose an account.",
+    })
+    expect(await createTransaction(loanTxnForm("lent", { accountId: "   " }))).toEqual({
+      code: "account-required",
+      error: "Choose an account.",
+    })
+
+    expect(await db.select().from(transactions)).toHaveLength(0)
+    expect(await db.select().from(loans)).toHaveLength(0)
+  })
+
+  it("rejects an unknown account", async () => {
+    await authenticate()
+
+    expect(await createTransaction(loanTxnForm("borrowed", { accountId: "ghost" }))).toEqual({
+      code: "account-invalid",
+      error: "Choose an account.",
+    })
+
+    expect(await db.select().from(transactions)).toHaveLength(0)
+    expect(await db.select().from(loans)).toHaveLength(0)
+  })
+
+  it.each([
+    ["person-required", { person: "   " }],
+    ["person-too-long", { person: "x".repeat(61) }],
+    ["amount-required", { amount: "" }],
+    ["amount-invalid", { amount: "1,23" }],
+    ["amount-not-positive", { amount: "0" }],
+    ["date-required", { date: "" }],
+    ["date-invalid", { date: "2026-02-31" }],
+    ["date-invalid", { dueDate: "2026-02-31" }],
+    ["note-too-long", { note: "n".repeat(281) }],
+  ] as const)("rejects an invalid form with %s and writes nothing", async (code, overrides) => {
+    await authenticate()
+
+    const result = await createTransaction(loanTxnForm("borrowed", { ...overrides }))
+
+    expect(result).toMatchObject({ code })
+    expect(await db.select().from(transactions)).toHaveLength(0)
+    expect(await db.select().from(loans)).toHaveLength(0)
+  })
+
+  it("rejects an invalid time of day like every other transaction", async () => {
+    await authenticate()
+
+    expect(await createTransaction(loanTxnForm("borrowed", { time: "25:99" }))).toMatchObject({
+      code: "time-invalid",
+    })
+
+    expect(await db.select().from(transactions)).toHaveLength(0)
+    expect(await db.select().from(loans)).toHaveLength(0)
+  })
+
+  it("requires a session before writing a borrowed / lent entry", async () => {
+    await resetDatabase()
+    await insertAccount({ id: BANK, name: "Bank", type: "bank" })
+
+    await expect(createTransaction(loanTxnForm("borrowed"))).rejects.toThrow("NEXT_REDIRECT:/login")
+    await expect(createTransaction(loanTxnForm("lent"))).rejects.toThrow("NEXT_REDIRECT:/login")
+
+    expect(await db.select().from(transactions)).toHaveLength(0)
+    expect(await db.select().from(loans)).toHaveLength(0)
+  })
+
+  it("does not change how income, expense and transfer are created", async () => {
+    await authenticate()
+
+    await expect(createTransaction(expenseForm())).rejects.toThrow("NEXT_REDIRECT:/transactions")
+
+    expect(await db.select().from(transactions)).toHaveLength(1)
+    expect(await db.select().from(loans)).toHaveLength(0)
   })
 })

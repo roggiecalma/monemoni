@@ -1,0 +1,6 @@
+{
+  "name": "monemoni-agents",
+  "displayName": "MoneMoni Dev Team Agents",
+  "version": "1.0.0",
+  "description": "Native Antigravity coder (Gemini 3.8 Flash Low) and tester (Claude Sonnet 5.5 High) agents for MoneMoni."
+}

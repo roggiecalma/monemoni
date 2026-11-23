@@ -7,12 +7,14 @@
 
 import { and, asc, desc, eq, gte, lte, ne, sql, type SQL } from "drizzle-orm"
 
-import { lastDayOfMonth, monthKey } from "../dates"
+import { lastDayOfMonth, monthKey, todayKey } from "../dates"
 import { db } from "./client"
 import {
   accounts,
   categories,
   goalContributions,
+  loanPayments,
+  loans,
   recurringBills,
   savingsGoals,
   transactions,
@@ -21,6 +23,9 @@ import {
   type Category,
   type CategoryKind,
   type GoalContribution,
+  type Loan,
+  type LoanDirection,
+  type LoanPayment,
   type RecurringBill,
   type SavingsGoal,
   type Transaction,
@@ -587,4 +592,198 @@ export async function getGoalContributionTotal(goalId: string): Promise<number> 
     .where(eq(goalContributions.goalId, goalId))
 
   return rows[0]?.total ?? 0
+}
+
+/* -------------------------------------------------------------------------- */
+/* loans                                                                      */
+/* -------------------------------------------------------------------------- */
+
+export type LoanStatus = "open" | "partially_paid" | "settled"
+
+export interface LoanWithTotals extends Loan {
+  totalPaid: number
+  remainingBalance: number
+  status: LoanStatus
+  isOverdue: boolean
+}
+
+export interface LoanSummary {
+  totalIOwe: number
+  totalOwedToMe: number
+  netPosition: number
+}
+
+/**
+ * Computes a loan's derived totals and status:
+ * - totalPaid: sum of all repayments
+ * - remainingBalance: max(0, amount - totalPaid)
+ * - status: "settled" if totalPaid >= amount, "partially_paid" if totalPaid > 0, else "open"
+ * - isOverdue: true if status != "settled" and dueDate is earlier than today
+ */
+function deriveLoanFields(
+  loan: Loan,
+  totalPaid: number,
+  today = todayKey(),
+): LoanWithTotals {
+  const remainingBalance = Math.max(0, loan.amount - totalPaid)
+  let status: LoanStatus = "open"
+  if (totalPaid >= loan.amount) {
+    status = "settled"
+  } else if (totalPaid > 0) {
+    status = "partially_paid"
+  }
+  const isOverdue = status !== "settled" && loan.dueDate !== null && loan.dueDate < today
+
+  return {
+    ...loan,
+    totalPaid,
+    remainingBalance,
+    status,
+    isOverdue,
+  }
+}
+
+/**
+ * Returns all loans with their computed totals.
+ *
+ * Ordered active (unarchived) first, then newest date first.
+ */
+export async function getLoans(includeArchived = true): Promise<LoanWithTotals[]> {
+  const condition = includeArchived ? undefined : eq(loans.archived, false)
+
+  const rows = await db
+    .select({
+      id: loans.id,
+      person: loans.person,
+      amount: loans.amount,
+      currency: loans.currency,
+      direction: loans.direction,
+      accountId: loans.accountId,
+      transactionId: loans.transactionId,
+      date: loans.date,
+      dueDate: loans.dueDate,
+      note: loans.note,
+      archived: loans.archived,
+      createdAt: loans.createdAt,
+      updatedAt: loans.updatedAt,
+      totalPaid: sql<number>`coalesce(sum(${loanPayments.amount}), 0)`.mapWith(Number),
+    })
+    .from(loans)
+    .leftJoin(loanPayments, eq(loanPayments.loanId, loans.id))
+    .where(condition)
+    .groupBy(loans.id)
+    .orderBy(asc(loans.archived), desc(loans.date), desc(loans.createdAt))
+
+  const today = todayKey()
+  return rows.map((row) =>
+    deriveLoanFields(
+      {
+        id: row.id,
+        person: row.person,
+        amount: row.amount,
+        currency: row.currency,
+        direction: row.direction,
+        accountId: row.accountId,
+        transactionId: row.transactionId,
+        date: row.date,
+        dueDate: row.dueDate,
+        note: row.note,
+        archived: row.archived,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      },
+      row.totalPaid,
+      today,
+    ),
+  )
+}
+
+/**
+ * Returns a single loan by id with its computed totals, or null if not found.
+ */
+export async function getLoanById(id: string): Promise<LoanWithTotals | null> {
+  const rows = await db
+    .select({
+      id: loans.id,
+      person: loans.person,
+      amount: loans.amount,
+      currency: loans.currency,
+      direction: loans.direction,
+      accountId: loans.accountId,
+      transactionId: loans.transactionId,
+      date: loans.date,
+      dueDate: loans.dueDate,
+      note: loans.note,
+      archived: loans.archived,
+      createdAt: loans.createdAt,
+      updatedAt: loans.updatedAt,
+      totalPaid: sql<number>`coalesce(sum(${loanPayments.amount}), 0)`.mapWith(Number),
+    })
+    .from(loans)
+    .leftJoin(loanPayments, eq(loanPayments.loanId, loans.id))
+    .where(eq(loans.id, id))
+    .groupBy(loans.id)
+    .limit(1)
+
+  const row = rows[0]
+  if (!row) return null
+
+  return deriveLoanFields(
+    {
+      id: row.id,
+      person: row.person,
+      amount: row.amount,
+      currency: row.currency,
+      direction: row.direction,
+      accountId: row.accountId,
+      transactionId: row.transactionId,
+      date: row.date,
+      dueDate: row.dueDate,
+      note: row.note,
+      archived: row.archived,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    },
+    row.totalPaid,
+  )
+}
+
+/**
+ * Returns all payments recorded for a loan, newest date first.
+ */
+export async function getLoanPayments(loanId: string): Promise<LoanPayment[]> {
+  return db
+    .select()
+    .from(loanPayments)
+    .where(eq(loanPayments.loanId, loanId))
+    .orderBy(desc(loanPayments.date), desc(loanPayments.createdAt))
+}
+
+/**
+ * Computes summary of open/partially paid unarchived loans:
+ * - totalIOwe: sum of remaining balance for active "i_owe" loans
+ * - totalOwedToMe: sum of remaining balance for active "owed_to_me" loans
+ * - netPosition: totalOwedToMe - totalIOwe
+ */
+export async function getLoanSummary(): Promise<LoanSummary> {
+  const allLoans = await getLoans(false)
+
+  let totalIOwe = 0
+  let totalOwedToMe = 0
+
+  for (const loan of allLoans) {
+    if (loan.status === "settled") continue
+
+    if (loan.direction === "i_owe") {
+      totalIOwe += loan.remainingBalance
+    } else if (loan.direction === "owed_to_me") {
+      totalOwedToMe += loan.remainingBalance
+    }
+  }
+
+  return {
+    totalIOwe,
+    totalOwedToMe,
+    netPosition: totalOwedToMe - totalIOwe,
+  }
 }

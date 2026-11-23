@@ -15,6 +15,13 @@
       "when": 1795264840091,
       "tag": "0001_glamorous_ego",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1795437778721,
+      "tag": "0002_fixed_random",
+      "breakpoints": true
     }
   ]
 }

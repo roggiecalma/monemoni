@@ -38,6 +38,8 @@ export const TRANSACTION_ERROR_CODES = [
   "to-account-invalid",
   "to-account-same",
   "note-too-long",
+  "person-required",
+  "person-too-long",
 ] as const
 
 export type TransactionErrorCode = (typeof TRANSACTION_ERROR_CODES)[number]
@@ -60,6 +62,8 @@ export const TRANSACTION_ERROR_MESSAGES: Record<TransactionErrorCode, string> = 
   "to-account-invalid": "Choose the account the money moves to.",
   "to-account-same": "The destination must be a different account.",
   "note-too-long": `Notes can be at most ${TRANSACTION_NOTE_MAX_LENGTH} characters.`,
+  "person-required": "Enter a person's name.",
+  "person-too-long": "Person's name is too long.",
 }
 
 /** Human labels for the transaction types, shared by every transaction screen. */

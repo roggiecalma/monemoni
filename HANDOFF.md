@@ -1,6 +1,6 @@
 # Handoff — MoneMoni
 
-State as of the end of **Wave B2a** (A‴ and Q′ included). Read `ARCHITECTURE.md` first — it is the source of truth for the data model, money rules, auth model, and conventions.
+State as of the end of **Wave C** (Wave B2b, recurring bills, and savings goals included). Read `ARCHITECTURE.md` first — it is the source of truth for the data model, money rules, auth model, and conventions.
 
 ## Status
 
@@ -15,18 +15,16 @@ State as of the end of **Wave B2a** (A‴ and Q′ included). Read `ARCHITECTURE
 | Q′ | Follow-up: restore type-driven category totals; `offset` implies a limit | **done** — `bf66cb7` |
 | B2a | Accounts + categories CRUD, nav, error boundaries | **done** — `bf66cb7` |
 | B2b | Transactions CRUD (list, month/type filters, income/expense/transfer forms, delete) | **done** |
-| C | Recurring bills, savings goals, reports, SVG charts, CSV export | in progress |
-| D | Turso + Vercel deploy, README | not started |
+| C | Recurring bills and savings goals completed with full CRUD, validations, actions; budgets, reports, SVG charts, and CSV export removed per user instruction | **done** (285 tests across 13 files) |
+| Loans | Peer-to-peer loans ("I owe" and "Owed to me"), partial repayments, auto-settle, transaction sync | **done** (342 tests across 15 files) |
 
-`origin/main` is in sync with `main` at `bf66cb7`.
-
-**Next:** Wave **C** — recurring bills, budgets, savings goals, reports, SVG charts, CSV export.
+**Deployment:** Deployed on Turso + Vercel.
 
 ## Workflow
 
 Act as orchestrator and delegate in order: **coder → tester**. If the tester reports `FAIL`, send the exact diagnostics back to the coder for a targeted fix, then re-run the tester — up to **3 iterations**, then stop and report the blocker.
 
-The role definitions live in `.opencode/agents/` and are registered as native OpenCode subagents (`coder`, `tester`):
+The role definitions live in `.agents/` and must be spawned via `swarm` to enforce exact model IDs (`coder`: `gemini-3.8-flash-low` [Gemini 3.8 Flash (Low)], `tester`: `claude-sonnet-5-5-high` [Claude Sonnet 5.5 (High)]):
 
 - **coder** — implements exactly what is asked; keeps changes focused; no unrelated refactors; reports files changed + summary.
 - **tester** — writes and runs tests (normal, edge, error cases). **Never modifies implementation code.** Reports failures honestly with a `PASS`/`FAIL` verdict.
@@ -83,8 +81,8 @@ tests/                   139 tests across money, auth, auth-errors, actions,
 ## Verified working
 
 - `npm run typecheck` — clean.
-- `npm test` — **139 tests, all green** (7 files). The `auth-errors` suite is resynced with the Wave A‴ codes (`too-long`, `too-many-attempts`) and pins the own-property lookup, so the prototype-chain regression cannot come back. Run repeatedly with identical results.
-- `npm run build` — succeeds cleanly. Routes: `/`, `/dashboard`, `/accounts`, `/accounts/new`, `/accounts/[id]/edit`, `/categories`, `/categories/new`, `/categories/[id]/edit`, `/login`, `/setup` are dynamic (`ƒ`); only `/_not-found`, `/icon.svg`, `/manifest.webmanifest` are static. Next.js is pinned at **16.4.6** (security upgrade from 16.4.2), which resolves the advisory reminder.
+- `npm test` — **342 tests, all green** (15 files). All tests across auth, sessions, transactions, recurring bills, savings goals, loans, validations, money parsing/formatting, queries, seed idempotency, and DB client guards pass. Run repeatedly with identical results.
+- `npm run build` — succeeds cleanly (using `next build --webpack`). Routes: `/`, `/dashboard`, `/accounts`, `/accounts/new`, `/accounts/[id]/edit`, `/categories`, `/categories/new`, `/categories/[id]/edit`, `/login`, `/setup` are dynamic (`ƒ`); only `/_not-found`, `/icon.svg`, `/manifest.webmanifest` are static. Next.js is pinned at **16.4.6** (security upgrade from 16.4.2), which resolves the advisory reminder.
 - Security headers are **actually served** (verified with `curl`): nosniff, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, and a CSP. Dynamic pages send `Cache-Control: no-store`.
 - Full auth flow exercised in dev **and** in a production build: setup → dashboard → logout, with the `mm_session` cookie carrying `HttpOnly`, `SameSite=lax`, `Max-Age=2592000`.
 - Client JS on the production dashboard: 6 chunks, 570 KB raw / **174 KB gzip** — all React + App Router baseline, no third-party client code. Exactly one `"use client"` file in the tree.

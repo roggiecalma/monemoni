@@ -43,6 +43,7 @@ export function TransactionForm({
   error,
   submitLabel,
   submitIcon = "check",
+  allowLoanTypes = false,
 }: {
   action: (formData: FormData) => Promise<void>
   accounts: Account[]
@@ -52,6 +53,7 @@ export function TransactionForm({
   error?: string | null
   submitLabel: string
   submitIcon?: IconName
+  allowLoanTypes?: boolean
 }) {
   const incomeCategories = categories.filter((category) => category.kind === "income")
   const expenseCategories = categories.filter((category) => category.kind === "expense")
@@ -69,6 +71,7 @@ export function TransactionForm({
           defaultAccountId={defaults.accountId}
           defaultCategoryId={defaults.categoryId}
           defaultToAccountId={defaults.toAccountId}
+          allowLoanTypes={allowLoanTypes}
         />
 
         <div className="grid gap-4 sm:grid-cols-2">

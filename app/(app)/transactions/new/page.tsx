@@ -76,6 +76,7 @@ export default async function NewTransactionPage({
         error={message}
         submitLabel="Save record"
         submitIcon="plus"
+        allowLoanTypes
       />
 
       <p className="text-center text-xs text-ink-subtle">
