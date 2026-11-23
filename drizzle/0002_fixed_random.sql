@@ -1,21 +1,21 @@
-CREATE TABLE `loan_payments` (
+CREATE TABLE `borrowed_lent_payments` (
 	`id` text PRIMARY KEY NOT NULL,
-	`loan_id` text NOT NULL,
+	`borrowed_lent_id` text NOT NULL,
 	`date` text NOT NULL,
 	`amount` integer NOT NULL,
 	`account_id` text NOT NULL,
 	`transaction_id` text,
 	`note` text,
 	`created_at` integer NOT NULL,
-	FOREIGN KEY (`loan_id`) REFERENCES `loans`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`borrowed_lent_id`) REFERENCES `borrowed_lent`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`account_id`) REFERENCES `accounts`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`transaction_id`) REFERENCES `transactions`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
-CREATE INDEX `loan_payments_loan_id_idx` ON `loan_payments` (`loan_id`);--> statement-breakpoint
-CREATE INDEX `loan_payments_account_id_idx` ON `loan_payments` (`account_id`);--> statement-breakpoint
-CREATE INDEX `loan_payments_date_idx` ON `loan_payments` (`date`);--> statement-breakpoint
-CREATE TABLE `loans` (
+CREATE INDEX `borrowed_lent_payments_entry_id_idx` ON `borrowed_lent_payments` (`borrowed_lent_id`);--> statement-breakpoint
+CREATE INDEX `borrowed_lent_payments_account_id_idx` ON `borrowed_lent_payments` (`account_id`);--> statement-breakpoint
+CREATE INDEX `borrowed_lent_payments_date_idx` ON `borrowed_lent_payments` (`date`);--> statement-breakpoint
+CREATE TABLE `borrowed_lent` (
 	`id` text PRIMARY KEY NOT NULL,
 	`person` text NOT NULL,
 	`amount` integer NOT NULL,
@@ -33,8 +33,8 @@ CREATE TABLE `loans` (
 	FOREIGN KEY (`transaction_id`) REFERENCES `transactions`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
-CREATE INDEX `loans_direction_idx` ON `loans` (`direction`);--> statement-breakpoint
-CREATE INDEX `loans_account_id_idx` ON `loans` (`account_id`);--> statement-breakpoint
-CREATE INDEX `loans_archived_idx` ON `loans` (`archived`);--> statement-breakpoint
-CREATE INDEX `loans_date_idx` ON `loans` (`date`);--> statement-breakpoint
+CREATE INDEX `borrowed_lent_direction_idx` ON `borrowed_lent` (`direction`);--> statement-breakpoint
+CREATE INDEX `borrowed_lent_account_id_idx` ON `borrowed_lent` (`account_id`);--> statement-breakpoint
+CREATE INDEX `borrowed_lent_archived_idx` ON `borrowed_lent` (`archived`);--> statement-breakpoint
+CREATE INDEX `borrowed_lent_date_idx` ON `borrowed_lent` (`date`);--> statement-breakpoint
 DROP TABLE `budgets`;

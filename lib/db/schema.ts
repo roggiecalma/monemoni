@@ -243,11 +243,11 @@ export type GoalContribution = typeof goalContributions.$inferSelect
 export type NewGoalContribution = typeof goalContributions.$inferInsert
 
 /* -------------------------------------------------------------------------- */
-/* loans & loan payments                                                      */
+/* borrowed / lent (peer-to-peer debts) & payments                             */
 /* -------------------------------------------------------------------------- */
 
-export const loans = sqliteTable(
-  "loans",
+export const borrowedLent = sqliteTable(
+  "borrowed_lent",
   {
     id: text("id").primaryKey(),
     person: text("person").notNull(),
@@ -264,23 +264,27 @@ export const loans = sqliteTable(
     updatedAt: integer("updated_at").notNull().$defaultFn(() => Date.now()),
   },
   (t) => [
-    index("loans_direction_idx").on(t.direction),
-    index("loans_account_id_idx").on(t.accountId),
-    index("loans_archived_idx").on(t.archived),
-    index("loans_date_idx").on(t.date),
+    index("borrowed_lent_direction_idx").on(t.direction),
+    index("borrowed_lent_account_id_idx").on(t.accountId),
+    index("borrowed_lent_archived_idx").on(t.archived),
+    index("borrowed_lent_date_idx").on(t.date),
   ],
 )
 
-export type Loan = typeof loans.$inferSelect
-export type NewLoan = typeof loans.$inferInsert
+export const loans = borrowedLent
 
-export const loanPayments = sqliteTable(
-  "loan_payments",
+export type BorrowedLent = typeof borrowedLent.$inferSelect
+export type NewBorrowedLent = typeof borrowedLent.$inferInsert
+export type Loan = BorrowedLent
+export type NewLoan = NewBorrowedLent
+
+export const borrowedLentPayments = sqliteTable(
+  "borrowed_lent_payments",
   {
     id: text("id").primaryKey(),
-    loanId: text("loan_id")
+    loanId: text("borrowed_lent_id")
       .notNull()
-      .references(() => loans.id, { onDelete: "cascade" }),
+      .references(() => borrowedLent.id, { onDelete: "cascade" }),
     date: text("date").notNull(),
     amount: integer("amount").notNull(),
     accountId: text("account_id")
@@ -291,14 +295,18 @@ export const loanPayments = sqliteTable(
     createdAt: integer("created_at").notNull().$defaultFn(() => Date.now()),
   },
   (t) => [
-    index("loan_payments_loan_id_idx").on(t.loanId),
-    index("loan_payments_account_id_idx").on(t.accountId),
-    index("loan_payments_date_idx").on(t.date),
+    index("borrowed_lent_payments_entry_id_idx").on(t.loanId),
+    index("borrowed_lent_payments_account_id_idx").on(t.accountId),
+    index("borrowed_lent_payments_date_idx").on(t.date),
   ],
 )
 
-export type LoanPayment = typeof loanPayments.$inferSelect
-export type NewLoanPayment = typeof loanPayments.$inferInsert
+export const loanPayments = borrowedLentPayments
+
+export type BorrowedLentPayment = typeof borrowedLentPayments.$inferSelect
+export type NewBorrowedLentPayment = typeof borrowedLentPayments.$inferInsert
+export type LoanPayment = BorrowedLentPayment
+export type NewLoanPayment = NewBorrowedLentPayment
 
 /* -------------------------------------------------------------------------- */
 /* settings                                                                    */

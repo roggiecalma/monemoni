@@ -74,17 +74,46 @@ CREATE INDEX IF NOT EXISTS `transactions_account_id_idx` ON `transactions` (`acc
 CREATE INDEX IF NOT EXISTS `transactions_category_id_idx` ON `transactions` (`category_id`);
 CREATE INDEX IF NOT EXISTS `transactions_type_idx` ON `transactions` (`type`);
 
-CREATE TABLE IF NOT EXISTS `budgets` (
+CREATE TABLE IF NOT EXISTS `borrowed_lent` (
 	`id` text PRIMARY KEY NOT NULL,
-	`category_id` text NOT NULL,
-	`month` text NOT NULL,
+	`person` text NOT NULL,
 	`amount` integer NOT NULL,
 	`currency` text DEFAULT 'PHP' NOT NULL,
-	FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON UPDATE no action ON DELETE cascade
+	`direction` text NOT NULL,
+	`account_id` text,
+	`transaction_id` text,
+	`date` text NOT NULL,
+	`due_date` text,
+	`note` text,
+	`archived` integer DEFAULT false NOT NULL,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	FOREIGN KEY (`account_id`) REFERENCES `accounts`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`transaction_id`) REFERENCES `transactions`(`id`) ON UPDATE no action ON DELETE set null
 );
 
-CREATE INDEX IF NOT EXISTS `budgets_category_month_idx` ON `budgets` (`category_id`,`month`);
-CREATE UNIQUE INDEX IF NOT EXISTS `budgets_category_month_unique` ON `budgets` (`category_id`,`month`);
+CREATE INDEX IF NOT EXISTS `borrowed_lent_direction_idx` ON `borrowed_lent` (`direction`);
+CREATE INDEX IF NOT EXISTS `borrowed_lent_account_id_idx` ON `borrowed_lent` (`account_id`);
+CREATE INDEX IF NOT EXISTS `borrowed_lent_archived_idx` ON `borrowed_lent` (`archived`);
+CREATE INDEX IF NOT EXISTS `borrowed_lent_date_idx` ON `borrowed_lent` (`date`);
+
+CREATE TABLE IF NOT EXISTS `borrowed_lent_payments` (
+	`id` text PRIMARY KEY NOT NULL,
+	`borrowed_lent_id` text NOT NULL,
+	`date` text NOT NULL,
+	`amount` integer NOT NULL,
+	`account_id` text NOT NULL,
+	`transaction_id` text,
+	`note` text,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`borrowed_lent_id`) REFERENCES `borrowed_lent`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`account_id`) REFERENCES `accounts`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`transaction_id`) REFERENCES `transactions`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE INDEX IF NOT EXISTS `borrowed_lent_payments_entry_id_idx` ON `borrowed_lent_payments` (`borrowed_lent_id`);
+CREATE INDEX IF NOT EXISTS `borrowed_lent_payments_account_id_idx` ON `borrowed_lent_payments` (`account_id`);
+CREATE INDEX IF NOT EXISTS `borrowed_lent_payments_date_idx` ON `borrowed_lent_payments` (`date`);
 
 CREATE TABLE IF NOT EXISTS `recurring_bills` (
 	`id` text PRIMARY KEY NOT NULL,

@@ -283,8 +283,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "loan_payments": {
-      "name": "loan_payments",
+    "borrowed_lent_payments": {
+      "name": "borrowed_lent_payments",
       "columns": {
         "id": {
           "name": "id",
@@ -293,8 +293,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "loan_id": {
-          "name": "loan_id",
+        "borrowed_lent_id": {
+          "name": "borrowed_lent_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -344,22 +344,22 @@
         }
       },
       "indexes": {
-        "loan_payments_loan_id_idx": {
-          "name": "loan_payments_loan_id_idx",
+        "borrowed_lent_payments_entry_id_idx": {
+          "name": "borrowed_lent_payments_entry_id_idx",
           "columns": [
-            "loan_id"
+            "borrowed_lent_id"
           ],
           "isUnique": false
         },
-        "loan_payments_account_id_idx": {
-          "name": "loan_payments_account_id_idx",
+        "borrowed_lent_payments_account_id_idx": {
+          "name": "borrowed_lent_payments_account_id_idx",
           "columns": [
             "account_id"
           ],
           "isUnique": false
         },
-        "loan_payments_date_idx": {
-          "name": "loan_payments_date_idx",
+        "borrowed_lent_payments_date_idx": {
+          "name": "borrowed_lent_payments_date_idx",
           "columns": [
             "date"
           ],
@@ -367,12 +367,12 @@
         }
       },
       "foreignKeys": {
-        "loan_payments_loan_id_loans_id_fk": {
-          "name": "loan_payments_loan_id_loans_id_fk",
-          "tableFrom": "loan_payments",
-          "tableTo": "loans",
+        "borrowed_lent_payments_borrowed_lent_id_borrowed_lent_id_fk": {
+          "name": "borrowed_lent_payments_borrowed_lent_id_borrowed_lent_id_fk",
+          "tableFrom": "borrowed_lent_payments",
+          "tableTo": "borrowed_lent",
           "columnsFrom": [
-            "loan_id"
+            "borrowed_lent_id"
           ],
           "columnsTo": [
             "id"
@@ -380,9 +380,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "loan_payments_account_id_accounts_id_fk": {
-          "name": "loan_payments_account_id_accounts_id_fk",
-          "tableFrom": "loan_payments",
+        "borrowed_lent_payments_account_id_accounts_id_fk": {
+          "name": "borrowed_lent_payments_account_id_accounts_id_fk",
+          "tableFrom": "borrowed_lent_payments",
           "tableTo": "accounts",
           "columnsFrom": [
             "account_id"
@@ -393,9 +393,9 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "loan_payments_transaction_id_transactions_id_fk": {
-          "name": "loan_payments_transaction_id_transactions_id_fk",
-          "tableFrom": "loan_payments",
+        "borrowed_lent_payments_transaction_id_transactions_id_fk": {
+          "name": "borrowed_lent_payments_transaction_id_transactions_id_fk",
+          "tableFrom": "borrowed_lent_payments",
           "tableTo": "transactions",
           "columnsFrom": [
             "transaction_id"
@@ -411,8 +411,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "loans": {
-      "name": "loans",
+    "borrowed_lent": {
+      "name": "borrowed_lent",
       "columns": {
         "id": {
           "name": "id",
@@ -448,6 +448,20 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "date": {
@@ -495,29 +509,63 @@
         }
       },
       "indexes": {
-        "loans_direction_idx": {
-          "name": "loans_direction_idx",
+        "borrowed_lent_direction_idx": {
+          "name": "borrowed_lent_direction_idx",
           "columns": [
             "direction"
           ],
           "isUnique": false
         },
-        "loans_archived_idx": {
-          "name": "loans_archived_idx",
+        "borrowed_lent_account_id_idx": {
+          "name": "borrowed_lent_account_id_idx",
+          "columns": [
+            "account_id"
+          ],
+          "isUnique": false
+        },
+        "borrowed_lent_archived_idx": {
+          "name": "borrowed_lent_archived_idx",
           "columns": [
             "archived"
           ],
           "isUnique": false
         },
-        "loans_date_idx": {
-          "name": "loans_date_idx",
+        "borrowed_lent_date_idx": {
+          "name": "borrowed_lent_date_idx",
           "columns": [
             "date"
           ],
           "isUnique": false
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "borrowed_lent_account_id_accounts_id_fk": {
+          "name": "borrowed_lent_account_id_accounts_id_fk",
+          "tableFrom": "borrowed_lent",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "borrowed_lent_transaction_id_transactions_id_fk": {
+          "name": "borrowed_lent_transaction_id_transactions_id_fk",
+          "tableFrom": "borrowed_lent",
+          "tableTo": "transactions",
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
