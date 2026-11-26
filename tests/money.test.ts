@@ -15,6 +15,8 @@
 
 import { describe, expect, it } from "vitest"
 
+import { containsPesoAmount, maskPesoText } from "@/components/ui/AmountVisibilityToggle"
+
 import {
   formatDate,
   formatMonth,
@@ -491,5 +493,99 @@ describe("formatDate — impossible dates are returned unchanged", () => {
     expect(formatDate("2026-1-1")).toBe("2026-1-1")
     expect(formatDate("")).toBe("")
     expect(formatDate("not-a-date")).toBe("not-a-date")
+  })
+})
+
+describe("containsPesoAmount", () => {
+  it.each([
+    "₱1,234.56",
+    "+₱1,234.56",
+    "-₱1,234.56",
+    "- ₱500",
+    "₱0",
+    "₱1.2k",
+    "₱1.5M",
+    "₱1,234,567.89",
+    "Paid ₱5,000.00 of ₱10,000.00",
+    "Spent ₱99.",
+  ])("detects a peso amount in %j", (text) => {
+    expect(containsPesoAmount(text)).toBe(true)
+  })
+
+  it.each([
+    "",
+    "Dashboard",
+    "Borrowed / Lent",
+    "₱",
+    "₱ only a symbol",
+    "1,234.56",
+    "PHP 1,234.56",
+    "12.5%",
+    "Due 2026-12-31",
+  ])("finds no peso amount in %j", (text) => {
+    expect(containsPesoAmount(text)).toBe(false)
+  })
+
+  it("gives the same answer on repeated calls (global regex lastIndex is reset)", () => {
+    for (let i = 0; i < 4; i += 1) {
+      expect(containsPesoAmount("₱1,234.56")).toBe(true)
+      expect(containsPesoAmount("no money here")).toBe(false)
+    }
+  })
+})
+
+describe("maskPesoText", () => {
+  it.each([
+    ["₱1,234.56", "₱••••••"],
+    ["+₱1,234.56", "+₱••••••"],
+    ["-₱1,234.56", "-₱••••••"],
+    ["- ₱500", "- ₱••••••"],
+    ["₱0", "₱••••••"],
+    ["₱1.2k", "₱••••••"],
+    ["₱12.3k", "₱••••••"],
+    ["₱1.5M", "₱••••••"],
+    ["₱1,234,567.89", "₱••••••"],
+    ["₱ 250", "₱••••••"],
+  ])("masks %j as %j", (input, expected) => {
+    expect(maskPesoText(input)).toBe(expected)
+  })
+
+  it("masks every amount in compound text and keeps the surrounding words", () => {
+    expect(maskPesoText("Paid ₱5,000.00 of ₱10,000.00")).toBe("Paid ₱•••••• of ₱••••••")
+    expect(maskPesoText("Borrowed · Remaining ₱600.00 of ₱1,000.00")).toBe(
+      "Borrowed · Remaining ₱•••••• of ₱••••••",
+    )
+    expect(maskPesoText("Spent ₱1,234.56.")).toBe("Spent ₱••••••.")
+    expect(maskPesoText("₱1,500.00/mo")).toBe("₱••••••/mo")
+  })
+
+  it("leaves text without a peso amount untouched", () => {
+    for (const text of ["", "Dashboard", "12.5%", "1,234.56", "₱", "Total Borrowed"]) {
+      expect(maskPesoText(text)).toBe(text)
+    }
+  })
+
+  it("is idempotent and its output no longer contains an amount", () => {
+    for (const text of ["₱1,234.56", "-₱1.5M", "Paid ₱5,000.00 of ₱10,000.00", "plain"]) {
+      const once = maskPesoText(text)
+      expect(maskPesoText(once)).toBe(once)
+      expect(containsPesoAmount(once)).toBe(false)
+    }
+  })
+
+  it("hides every digit of real formatPeso / formatPesoCompact output", () => {
+    for (const centavos of [0, 5, 100, 123456, -123456, 99999999, 123456789012, -123456789012]) {
+      const full = maskPesoText(formatPeso(centavos))
+      const compact = maskPesoText(formatPesoCompact(centavos))
+      expect(full).not.toMatch(/\d/)
+      expect(compact).not.toMatch(/\d/)
+      expect(full).toContain("₱••••••")
+      expect(compact).toContain("₱••••••")
+    }
+  })
+
+  it("keeps the sign of a negative amount but hides the number", () => {
+    expect(maskPesoText(formatPeso(-123456))).toBe("-₱••••••")
+    expect(maskPesoText(formatPesoCompact(-123456))).toBe("-₱••••••")
   })
 })

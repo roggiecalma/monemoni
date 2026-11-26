@@ -9,6 +9,7 @@
  */
 
 import { useEffect } from "react"
+import { captureCaughtError } from "@/lib/sentry"
 
 export default function AppError({
   error,
@@ -21,6 +22,7 @@ export default function AppError({
     // Log the error so it shows up in the browser console and in the server
     // logs. The `digest` correlates the two.
     console.error(error)
+    captureCaughtError(error)
   }, [error])
 
   // The forwarded error may be anything at all, so it is narrowed before

@@ -4,6 +4,7 @@ import { ensureSeedData } from "@/lib/db/seed"
 import { NAV_ITEMS } from "@/lib/nav"
 
 import { BrandMark, Icon } from "@/components/ui/icons"
+import { AmountVisibilityToggle } from "@/components/ui/AmountVisibilityToggle"
 
 /**
  * The authenticated app shell.
@@ -25,10 +26,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-surface-muted lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
       {/* Desktop rail */}
       <aside className="sticky top-0 hidden h-screen flex-col border-r border-border bg-surface-raised/80 px-4 py-6 backdrop-blur lg:flex">
-        <a href="/dashboard" className="flex items-center gap-3 px-2">
-          <BrandMark className="size-10" />
-          <span className="font-display text-lg font-semibold tracking-tight">MoneMoni</span>
-        </a>
+        <div className="flex items-center justify-between gap-2 px-2">
+          <a href="/dashboard" className="flex items-center gap-3">
+            <BrandMark className="size-10" />
+            <span className="font-display text-lg font-semibold tracking-tight">MoneMoni</span>
+          </a>
+          <AmountVisibilityToggle />
+        </div>
 
         <p className="mb-2 mt-9 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-subtle">
           Workspace
@@ -86,15 +90,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <BrandMark className="size-8 rounded-lg" />
               <span className="font-display text-base font-semibold tracking-tight">MoneMoni</span>
             </a>
-            <form action={logout}>
-              <button
-                type="submit"
-                aria-label="Sign out"
-                className="grid size-9 place-items-center rounded-xl border border-border bg-surface text-ink-muted transition hover:bg-surface-muted hover:text-ink"
-              >
-                <Icon name="logout" className="size-4" />
-              </button>
-            </form>
+            <div className="flex items-center gap-2">
+              <AmountVisibilityToggle />
+              <form action={logout}>
+                <button
+                  type="submit"
+                  aria-label="Sign out"
+                  className="grid size-9 place-items-center rounded-xl border border-border bg-surface text-ink-muted transition hover:bg-surface-muted hover:text-ink"
+                >
+                  <Icon name="logout" className="size-4" />
+                </button>
+              </form>
+            </div>
           </div>
 
           <nav aria-label="Main" className="px-3 pb-2.5">
